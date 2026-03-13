@@ -935,8 +935,12 @@ const AI = (() => {
 
   const _call = async (messages, system, maxTok=800) => {
     const key = localStorage.getItem('sr_api_key')||'';
-    const headers = {'Content-Type':'application/json'};
-    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; }
+    const headers = {
+      'Content-Type':'application/json',
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    };
+    if(key) headers['x-api-key']=key;
     const r = await fetch(URL, {
       method:'POST',
       headers,
@@ -1015,8 +1019,12 @@ ${ctx}
   /* Analyze skin from image */
   const analyzeSkin = async (base64Image, mediaType) => {
     const key = localStorage.getItem('sr_api_key')||'';
-    const headers = {'Content-Type':'application/json'};
-    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; }
+    const headers = {
+      'Content-Type':'application/json',
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    };
+    if(key) headers['x-api-key']=key;
     const sys = `אתה מומחה לטיפוח עור. נתח את התמונה של עור הפנים ותן דו"ח מפורט בעברית.
 ענה במבנה הבא בדיוק, בעברית:
 **מצב העור הכללי:** [תיאור קצר]
