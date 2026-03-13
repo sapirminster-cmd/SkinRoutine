@@ -668,6 +668,35 @@ body{
     </button>
   </div>
 
+  <!-- Skin Photo Analysis -->
+  <div class="card" style="margin-bottom:1rem">
+    <div class="section-label" style="margin-bottom:.8rem">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>
+      ניתוח עור פנים מתמונה
+    </div>
+    <div id="skin-photo-area" onclick="document.getElementById('skin-photo-input').click()"
+      style="border:2px dashed var(--border);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative"
+      ondragover="event.preventDefault();this.style.borderColor='var(--latte)'"
+      ondragleave="this.style.borderColor=''"
+      ondrop="handlePhotoDrop(event)">
+      <div id="skin-photo-preview" style="display:none;position:relative">
+        <img id="skin-photo-img" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:cover">
+        <button onclick="event.stopPropagation();clearPhoto()" style="position:absolute;top:6px;left:6px;width:28px;height:28px;border-radius:50%;background:rgba(62,44,34,.7);border:none;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <div id="skin-photo-placeholder">
+        <div style="font-size:2rem;margin-bottom:.5rem">📸</div>
+        <div style="font-size:.82rem;color:var(--text-soft)">לחצי להעלאת תמונה</div>
+        <div style="font-size:.68rem;color:var(--text-soft);margin-top:.2rem">JPG · PNG · WEBP</div>
+      </div>
+    </div>
+    <input type="file" id="skin-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoSelect(event)">
+    <div id="skin-analysis-result" style="margin-top:.8rem"></div>
+    <button id="analyze-btn" class="btn-sm btn-latte" style="margin-top:.8rem;width:100%;justify-content:center;display:none" onclick="runSkinAnalysis()">
+      <svg viewBox="0 0 256 256" fill="currentColor"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg>
+      נתחי עור עם AI
+    </button>
+  </div>
+
   <div class="chat-container">
     <div class="chat-title">
       <div class="ai-avatar">S</div>
@@ -704,8 +733,24 @@ body{
   </button>
 
   <div class="section-label" style="margin-bottom:.8rem">
-    <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z"/></svg>
-    ייצוא ויבוא
+    <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M243.07,92.76,161.14,10.86a16,16,0,0,0-22.63,0L12.69,136.66A16,16,0,0,0,8,147.9V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152a8,8,0,0,0-16,0v56H24V147.9L149.86,22,225,97.1,176,146.1V128a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8h40a8,8,0,0,0,0-16H191.31l51-51A16,16,0,0,0,243.07,92.76Z"/></svg>
+    מפתח Anthropic API
+  </div>
+  <div class="settings-card" style="margin-bottom:1.2rem">
+    <div style="padding:.9rem 1.1rem">
+      <p style="font-size:.72rem;color:var(--text-soft);margin-bottom:.7rem;line-height:1.6">
+        נדרש להפעלת AI באפליקציה. המפתח נשמר רק במכשיר שלך ולא עולה לשום שרת.
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--latte)">קבלי מפתח →</a>
+      </p>
+      <div style="display:flex;gap:.5rem">
+        <input type="password" id="api-key-input" class="modal-input"
+          placeholder="sk-ant-api03-..."
+          style="flex:1;font-family:monospace;font-size:.78rem;letter-spacing:.05em"
+          value="">
+        <button class="btn-sm btn-latte" onclick="saveApiKey()">שמירה</button>
+      </div>
+      <div id="api-key-status" style="font-size:.68rem;margin-top:.5rem;color:var(--text-soft)"></div>
+    </div>
   </div>
   <div class="settings-card">
     <div class="settings-row" onclick="exportData()">
@@ -889,12 +934,19 @@ const AI = (() => {
   const M    = 'claude-sonnet-4-20250514';
 
   const _call = async (messages, system, maxTok=800) => {
+    const key = localStorage.getItem('sr_api_key')||'';
+    const headers = {'Content-Type':'application/json'};
+    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; }
     const r = await fetch(URL, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers,
       body: JSON.stringify({ model:M, max_tokens:maxTok, system, messages })
     });
-    if(!r.ok) { const e=await r.json(); throw new Error(e.error?.message||`API ${r.status}`); }
+    if(!r.ok) {
+      const e=await r.json();
+      if(r.status===401) throw new Error('מפתח API שגוי — עדכני בהגדרות');
+      throw new Error(e.error?.message||`API ${r.status}`);
+    }
     const d = await r.json();
     return d.content?.[0]?.text || '';
   };
@@ -960,7 +1012,39 @@ ${ctx}
     return await chat([{role:'user', content:prompts[type]}], activeProds, routines);
   };
 
-  return { classifyProduct, buildRoutine, chat, quickAction };
+  /* Analyze skin from image */
+  const analyzeSkin = async (base64Image, mediaType) => {
+    const key = localStorage.getItem('sr_api_key')||'';
+    const headers = {'Content-Type':'application/json'};
+    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; }
+    const sys = `אתה מומחה לטיפוח עור. נתח את התמונה של עור הפנים ותן דו"ח מפורט בעברית.
+ענה במבנה הבא בדיוק, בעברית:
+**מצב העור הכללי:** [תיאור קצר]
+**דאגות עיקריות:** [רשימה]
+**חוזקות:** [מה נראה טוב]
+**המלצות מותאמות לרוטינה:** [2-3 המלצות ספציפיות]
+**מוצרים מהספרייה שיוכלו לעזור:** [הצע קטגוריות רלוונטיות]
+שמרי על טון מקצועי וחיובי. אל תאבחני מחלות רפואיות.`;
+    const r = await fetch(URL, {
+      method:'POST', headers,
+      body: JSON.stringify({
+        model:M, max_tokens:1000, system:sys,
+        messages:[{ role:'user', content:[
+          { type:'image', source:{ type:'base64', media_type:mediaType, data:base64Image } },
+          { type:'text', text:'נתחי את עור הפנים בתמונה זו ותני המלצות מותאמות לרוטינת הטיפוח שלי.' }
+        ]}]
+      })
+    });
+    if(!r.ok){
+      const e=await r.json();
+      if(r.status===401) throw new Error('מפתח API שגוי — עדכני בהגדרות');
+      throw new Error(e.error?.message||`API ${r.status}`);
+    }
+    const d = await r.json();
+    return d.content?.[0]?.text || '';
+  };
+
+  return { classifyProduct, buildRoutine, chat, quickAction, analyzeSkin };
 })();
 
 /* ═══════════════════════════════════════════
@@ -1807,12 +1891,114 @@ function _defaultRoutines(){
 }
 
 /* ═══════════════════════════════════════════
-   INIT
+   API KEY MANAGEMENT
 ═══════════════════════════════════════════ */
+function saveApiKey(){
+  const key = document.getElementById('api-key-input').value.trim();
+  if(!key){ UI.toast('הכניסי מפתח'); return; }
+  localStorage.setItem('sr_api_key', key);
+  document.getElementById('api-key-status').textContent = '✓ מפתח נשמר';
+  document.getElementById('api-key-status').style.color = 'var(--latte)';
+  UI.toast('מפתח API נשמר ✓');
+}
+
+function loadApiKeyUI(){
+  const key = localStorage.getItem('sr_api_key')||'';
+  const el = document.getElementById('api-key-input');
+  if(el && key){
+    el.value = key;
+    const st = document.getElementById('api-key-status');
+    st.textContent = '✓ מפתח שמור';
+    st.style.color = 'var(--latte)';
+  }
+}
+
+/* ═══════════════════════════════════════════
+   SKIN PHOTO ANALYSIS
+═══════════════════════════════════════════ */
+let _photoData = null; // { base64, mediaType }
+
+function handlePhotoSelect(e){
+  const file = e.target.files[0];
+  if(file) loadPhoto(file);
+}
+
+function handlePhotoDrop(e){
+  e.preventDefault();
+  document.getElementById('skin-photo-area').style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) loadPhoto(file);
+}
+
+function loadPhoto(file){
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    const base64 = dataUrl.split(',')[1];
+    const mediaType = file.type;
+    _photoData = { base64, mediaType };
+    // Show preview
+    document.getElementById('skin-photo-img').src = dataUrl;
+    document.getElementById('skin-photo-preview').style.display = 'block';
+    document.getElementById('skin-photo-placeholder').style.display = 'none';
+    document.getElementById('analyze-btn').style.display = 'flex';
+    document.getElementById('skin-analysis-result').innerHTML = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(){
+  _photoData = null;
+  document.getElementById('skin-photo-img').src = '';
+  document.getElementById('skin-photo-preview').style.display = 'none';
+  document.getElementById('skin-photo-placeholder').style.display = 'block';
+  document.getElementById('analyze-btn').style.display = 'none';
+  document.getElementById('skin-analysis-result').innerHTML = '';
+  document.getElementById('skin-photo-input').value = '';
+}
+
+async function runSkinAnalysis(){
+  if(!_photoData){ UI.toast('העלי תמונה קודם'); return; }
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;margin-left:.4rem"></div> מנתח...';
+  const result = document.getElementById('skin-analysis-result');
+  result.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>AI מנתח את עור הפנים...</span></div>';
+  try {
+    const text = await AI.analyzeSkin(_photoData.base64, _photoData.mediaType);
+    // Format markdown-style bold
+    const formatted = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g,'<br>');
+    result.innerHTML = `<div class="ai-result-box" style="margin-top:0">
+      <div style="line-height:1.85;font-size:.8rem">${formatted}</div>
+      <button class="btn-sm btn-outline" style="margin-top:.8rem"
+        onclick="sendAnalysisToChat()">שלחי לצ'אט לשאלות נוספות</button>
+    </div>`;
+    // Store last analysis for chat
+    window._lastSkinAnalysis = text;
+  } catch(e){
+    result.innerHTML = `<div class="ai-result-box ai-warning">שגיאה: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg> נתחי עור עם AI';
+}
+
+function sendAnalysisToChat(){
+  if(!window._lastSkinAnalysis) return;
+  switchTab('ai');
+  // Scroll to chat
+  document.querySelector('.chat-container')?.scrollIntoView({behavior:'smooth'});
+  appendMsg('להלן ניתוח עור הפנים שקיבלתי. יש לי שאלות נוספות:', 'user');
+  _chatHistory.push({role:'user', content:`ניתוח עור הפנים שלי: ${window._lastSkinAnalysis}\n\nיש לי שאלות נוספות לגבי הניתוח הזה.`});
+  appendMsg('קראתי את ניתוח העור שלך. מה תרצי לדעת?', 'ai');
+  _chatHistory.push({role:'assistant', content:'קראתי את ניתוח העור שלך. מה תרצי לדעת?'});
+}
 (function init(){
   renderRoutines();
   renderProducts();
   renderSettings();
+  loadApiKeyUI();
 })();
 </script>
 <script>
