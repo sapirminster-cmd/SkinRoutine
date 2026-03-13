@@ -610,6 +610,39 @@ body{
   </div>
 </div>
 
+<!-- Scan Products Modal -->
+<div id="modal-scan" class="modal-backdrop">
+  <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <p class="modal-title">📸 סריקת מוצרים</p>
+    <span class="modal-sub">צלמי מוצר אחד או כמה מוצרים יחד — AI יזהה ויוסיף לספרייה</span>
+
+    <div id="scan-photo-area"
+      onclick="document.getElementById('scan-photo-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--latte)'"
+      ondragleave="this.style.borderColor=''"
+      ondrop="handleScanDrop(event)"
+      style="border:2px dashed var(--border);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:.8rem">
+      <div id="scan-placeholder">
+        <div style="font-size:2rem;margin-bottom:.4rem">🔍</div>
+        <div style="font-size:.82rem;color:var(--text-soft)">לחצי לצילום / העלאת תמונת מוצר</div>
+        <div style="font-size:.68rem;color:var(--text-soft);margin-top:.15rem">אפשר כמה מוצרים בתמונה אחת</div>
+      </div>
+      <div id="scan-preview" style="display:none">
+        <img id="scan-preview-img" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:contain">
+      </div>
+    </div>
+    <input type="file" id="scan-photo-input" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none" onchange="handleScanSelect(event)">
+
+    <div id="scan-result"></div>
+
+    <div class="modal-actions" style="margin-top:.8rem">
+      <button class="btn-secondary" onclick="closeScanModal()">סגירה</button>
+      <button id="scan-run-btn" class="btn-primary" style="display:none" onclick="runScan()">זהי מוצרים</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ APP HEADER ════ -->
 <header class="app-header">
   <span class="app-title-en">Skin Ritual</span>
@@ -638,9 +671,15 @@ body{
     <button class="filter-chip" data-filter="mask" onclick="filterProducts('mask',this)">מסכה</button>
   </div>
   <div id="products-list"></div>
-  <button class="fab" onclick="openProductModal()" title="מוצר חדש">
-    <svg viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
-  </button>
+  <!-- FAB group -->
+  <div style="position:fixed;bottom:calc(64px + 1rem);left:1rem;display:flex;flex-direction:column;gap:.6rem;z-index:40">
+    <button class="fab" onclick="openProductModal()" title="מוצר חדש" style="width:48px;height:48px">
+      <svg viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+    </button>
+    <button class="fab" onclick="openScanModal()" title="סריקת מוצר" style="width:48px;height:48px;background:var(--rose);box-shadow:0 6px 20px rgba(217,196,198,.5)">
+      <svg viewBox="0 0 256 256" fill="currentColor"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>
+    </button>
+  </div>
 </div>
 
 <!-- TAB: AI -->
@@ -668,32 +707,31 @@ body{
     </button>
   </div>
 
-  <!-- Skin Photo Analysis -->
+  <!-- Skin Photo Analysis — multi photo -->
   <div class="card" style="margin-bottom:1rem">
     <div class="section-label" style="margin-bottom:.8rem">
       <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>
-      ניתוח עור פנים מתמונה
+      ניתוח עור פנים מתמונות
     </div>
-    <div id="skin-photo-area" onclick="document.getElementById('skin-photo-input').click()"
-      style="border:2px dashed var(--border);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative"
+    <p style="font-size:.71rem;color:var(--text-soft);margin-bottom:.8rem;line-height:1.55">העלי עד 4 תמונות — פנים קדמי, פרופיל, אזורים בעייתיים — לניתוח מדויק יותר</p>
+    <!-- Photo grid -->
+    <div id="skin-photos-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.8rem"></div>
+    <!-- Add photo button (shown when <4 photos) -->
+    <div id="skin-add-photo-btn"
+      onclick="document.getElementById('skin-photo-input').click()"
       ondragover="event.preventDefault();this.style.borderColor='var(--latte)'"
       ondragleave="this.style.borderColor=''"
-      ondrop="handlePhotoDrop(event)">
-      <div id="skin-photo-preview" style="display:none;position:relative">
-        <img id="skin-photo-img" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:cover">
-        <button onclick="event.stopPropagation();clearPhoto()" style="position:absolute;top:6px;left:6px;width:28px;height:28px;border-radius:50%;background:rgba(62,44,34,.7);border:none;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">✕</button>
-      </div>
-      <div id="skin-photo-placeholder">
-        <div style="font-size:2rem;margin-bottom:.5rem">📸</div>
-        <div style="font-size:.82rem;color:var(--text-soft)">לחצי להעלאת תמונה</div>
-        <div style="font-size:.68rem;color:var(--text-soft);margin-top:.2rem">JPG · PNG · WEBP</div>
-      </div>
+      ondrop="handlePhotoDrop(event)"
+      style="border:2px dashed var(--border);border-radius:12px;padding:1.2rem;text-align:center;cursor:pointer;transition:border-color .2s">
+      <div style="font-size:1.6rem;margin-bottom:.3rem">📸</div>
+      <div style="font-size:.8rem;color:var(--text-soft)">לחצי להוספת תמונה</div>
+      <div style="font-size:.68rem;color:var(--text-soft);margin-top:.15rem">JPG · PNG · WEBP · עד 4 תמונות</div>
     </div>
     <input type="file" id="skin-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoSelect(event)">
     <div id="skin-analysis-result" style="margin-top:.8rem"></div>
     <button id="analyze-btn" class="btn-sm btn-latte" style="margin-top:.8rem;width:100%;justify-content:center;display:none" onclick="runSkinAnalysis()">
-      <svg viewBox="0 0 256 256" fill="currentColor"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg>
-      נתחי עור עם AI
+      <svg viewBox="0 0 256 256" fill="currentColor" width="14" height="14"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg>
+      <span id="analyze-btn-label">נתחי עור עם AI</span>
     </button>
   </div>
 
@@ -1017,8 +1055,9 @@ ${ctx}
     return await chat([{role:'user', content:prompts[type]}], activeProds, routines);
   };
 
-  /* Analyze skin from image */
-  const analyzeSkin = async (base64Image, mediaType) => {
+  /* Analyze skin from multiple images */
+  const analyzeSkin = async (photos) => {
+    // photos: [{base64, mediaType}, ...]
     const key = localStorage.getItem('sr_api_key')||'';
     const headers = {
       'Content-Type':'application/json',
@@ -1026,34 +1065,63 @@ ${ctx}
       'anthropic-dangerous-direct-browser-access':'true'
     };
     if(key) headers['x-api-key']=key;
-    const sys = `אתה מומחה לטיפוח עור. נתח את התמונה של עור הפנים ותן דו"ח מפורט בעברית.
-ענה במבנה הבא בדיוק, בעברית:
+    const sys = `אתה מומחה לטיפוח עור. נתח את התמונות של עור הפנים ותן דו"ח מפורט בעברית.
+${photos.length>1?'קיבלת מספר תמונות מזוויות שונות — השתמשי בכולן לניתוח מקיף.':''}
+ענה במבנה הבא בדיוק:
 **מצב העור הכללי:** [תיאור קצר]
 **דאגות עיקריות:** [רשימה]
 **חוזקות:** [מה נראה טוב]
 **המלצות מותאמות לרוטינה:** [2-3 המלצות ספציפיות]
-**מוצרים מהספרייה שיוכלו לעזור:** [הצע קטגוריות רלוונטיות]
+**קטגוריות מוצרים שיעזרו:** [הצע קטגוריות רלוונטיות]
 שמרי על טון מקצועי וחיובי. אל תאבחני מחלות רפואיות.`;
+    const imgBlocks = photos.map(p=>({
+      type:'image', source:{ type:'base64', media_type:p.mediaType, data:p.base64 }
+    }));
+    const r = await fetch(URL, {
+      method:'POST', headers,
+      body: JSON.stringify({
+        model:M, max_tokens:1200, system:sys,
+        messages:[{ role:'user', content:[
+          ...imgBlocks,
+          { type:'text', text:`נתחי את עור הפנים ב${photos.length>1?photos.length+' התמונות':'תמונה'} ותני המלצות מותאמות.` }
+        ]}]
+      })
+    });
+    if(!r.ok){ const e=await r.json(); if(r.status===401) throw new Error('מפתח API שגוי — עדכני בהגדרות'); throw new Error(e.error?.message||`API ${r.status}`); }
+    const d = await r.json();
+    return d.content?.[0]?.text||'';
+  };
+
+  /* Scan product photo → identify products */
+  const scanProducts = async (base64Image, mediaType) => {
+    const key = localStorage.getItem('sr_api_key')||'';
+    const headers = {
+      'Content-Type':'application/json',
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    };
+    if(key) headers['x-api-key']=key;
+    const sys = `אתה מומחית טיפוח עור שמזהה מוצרים מתמונות. זהי את כל מוצרי הטיפוח בתמונה.
+ענה ב-JSON בלבד ללא טקסט נוסף:
+{"products":[{"brand":"שם המותג","name":"שם המוצר","category":"cleanser|toner|exfoliant|serum|eye_care|moisturizer|spf|retinoid|treatment|mask|oil|other","subCat":"תת-קטגוריה אופציונלית","timeOfUse":["morning","evening"],"note":"הערה קצרה על המוצר"}]}
+קטגוריות אפשריות בלבד: cleanser, toner, exfoliant, serum, eye_care, moisturizer, spf, retinoid, treatment, mask, oil, other
+אם לא מזהה מוצרי טיפוח ברורים — החזירי {"products":[]}`;
     const r = await fetch(URL, {
       method:'POST', headers,
       body: JSON.stringify({
         model:M, max_tokens:1000, system:sys,
         messages:[{ role:'user', content:[
           { type:'image', source:{ type:'base64', media_type:mediaType, data:base64Image } },
-          { type:'text', text:'נתחי את עור הפנים בתמונה זו ותני המלצות מותאמות לרוטינת הטיפוח שלי.' }
+          { type:'text', text:'זהי את כל מוצרי הטיפוח שנראים בתמונה.' }
         ]}]
       })
     });
-    if(!r.ok){
-      const e=await r.json();
-      if(r.status===401) throw new Error('מפתח API שגוי — עדכני בהגדרות');
-      throw new Error(e.error?.message||`API ${r.status}`);
-    }
+    if(!r.ok){ const e=await r.json(); if(r.status===401) throw new Error('מפתח API שגוי — עדכני בהגדרות'); throw new Error(e.error?.message||`API ${r.status}`); }
     const d = await r.json();
-    return d.content?.[0]?.text || '';
+    return _parseJSON(d.content?.[0]?.text||'{}');
   };
 
-  return { classifyProduct, buildRoutine, chat, quickAction, analyzeSkin };
+  return { classifyProduct, buildRoutine, chat, quickAction, analyzeSkin, scanProducts };
 })();
 
 /* ═══════════════════════════════════════════
@@ -1927,96 +1995,214 @@ function loadApiKeyUI(){
 }
 
 /* ═══════════════════════════════════════════
-   SKIN PHOTO ANALYSIS
+   SKIN PHOTO ANALYSIS — multi-photo
 ═══════════════════════════════════════════ */
-let _photoData = null; // { base64, mediaType }
+let _skinPhotos = []; // [{base64, mediaType, thumb}]
+const SKIN_MAX = 4;
 
 function handlePhotoSelect(e){
   const file = e.target.files[0];
-  if(file) loadPhoto(file);
+  if(file) addSkinPhoto(file);
+  e.target.value='';
 }
 
 function handlePhotoDrop(e){
   e.preventDefault();
-  document.getElementById('skin-photo-area').style.borderColor='';
+  document.getElementById('skin-add-photo-btn').style.borderColor='';
   const file = e.dataTransfer.files[0];
-  if(file && file.type.startsWith('image/')) loadPhoto(file);
+  if(file && file.type.startsWith('image/')) addSkinPhoto(file);
 }
 
-function loadPhoto(file){
+function compressImage(file, maxPx, quality, cb){
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      // Compress to max 1024px, JPEG 0.82 — keeps base64 under ~400KB
-      const MAX = 1024;
-      let w = img.naturalWidth, h = img.naturalHeight;
-      if(w > MAX || h > MAX){
-        if(w >= h){ h = Math.round(h * MAX/w); w = MAX; }
-        else      { w = Math.round(w * MAX/h); h = MAX; }
+      let w=img.naturalWidth, h=img.naturalHeight;
+      if(w>maxPx||h>maxPx){
+        if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}
+        else{w=Math.round(w*maxPx/h);h=maxPx;}
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const compressed = canvas.toDataURL('image/jpeg', 0.82);
-      _photoData = { base64: compressed.split(',')[1], mediaType: 'image/jpeg' };
-      document.getElementById('skin-photo-img').src = compressed;
-      document.getElementById('skin-photo-preview').style.display = 'block';
-      document.getElementById('skin-photo-placeholder').style.display = 'none';
-      document.getElementById('analyze-btn').style.display = 'flex';
-      document.getElementById('skin-analysis-result').innerHTML = '';
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',quality));
     };
-    img.src = ev.target.result;
+    img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function clearPhoto(){
-  _photoData = null;
-  document.getElementById('skin-photo-img').src = '';
-  document.getElementById('skin-photo-preview').style.display = 'none';
-  document.getElementById('skin-photo-placeholder').style.display = 'block';
-  document.getElementById('analyze-btn').style.display = 'none';
-  document.getElementById('skin-analysis-result').innerHTML = '';
-  document.getElementById('skin-photo-input').value = '';
+function addSkinPhoto(file){
+  if(_skinPhotos.length>=SKIN_MAX){ UI.toast(`מקסימום ${SKIN_MAX} תמונות`); return; }
+  compressImage(file, 1024, 0.82, dataUrl => {
+    _skinPhotos.push({ base64: dataUrl.split(',')[1], mediaType:'image/jpeg', thumb: dataUrl });
+    renderSkinPhotoGrid();
+  });
+}
+
+function removeSkinPhoto(i){
+  _skinPhotos.splice(i,1);
+  renderSkinPhotoGrid();
+}
+
+function renderSkinPhotoGrid(){
+  const grid = document.getElementById('skin-photos-grid');
+  const addBtn = document.getElementById('skin-add-photo-btn');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const label = document.getElementById('analyze-btn-label');
+
+  grid.innerHTML = _skinPhotos.map((p,i)=>`
+    <div style="position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#f0e8e0">
+      <img src="${p.thumb}" style="width:100%;height:100%;object-fit:cover">
+      <button onclick="removeSkinPhoto(${i})" style="position:absolute;top:5px;left:5px;width:24px;height:24px;border-radius:50%;background:rgba(62,44,34,.75);border:none;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      <div style="position:absolute;bottom:5px;right:6px;font-size:.62rem;color:#fff;background:rgba(0,0,0,.4);border-radius:4px;padding:1px 5px">${i+1}</div>
+    </div>`).join('');
+
+  addBtn.style.display = _skinPhotos.length>=SKIN_MAX ? 'none' : 'block';
+  analyzeBtn.style.display = _skinPhotos.length>0 ? 'flex' : 'none';
+  if(label) label.textContent = `נתחי ${_skinPhotos.length} ${_skinPhotos.length===1?'תמונה':'תמונות'} עם AI`;
+  document.getElementById('skin-analysis-result').innerHTML='';
 }
 
 async function runSkinAnalysis(){
-  if(!_photoData){ UI.toast('העלי תמונה קודם'); return; }
+  if(!_skinPhotos.length){ UI.toast('העלי תמונה קודם'); return; }
   const btn = document.getElementById('analyze-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;margin-left:.4rem"></div> מנתח...';
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner" style="width:14px;height:14px;margin-left:.4rem"></div> מנתח...';
   const result = document.getElementById('skin-analysis-result');
-  result.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>AI מנתח את עור הפנים...</span></div>';
+  result.innerHTML='<div class="ai-loading"><div class="spinner"></div><span>AI מנתח את עור הפנים...</span></div>';
   try {
-    const text = await AI.analyzeSkin(_photoData.base64, _photoData.mediaType);
-    // Format markdown-style bold
-    const formatted = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g,'<br>');
-    result.innerHTML = `<div class="ai-result-box" style="margin-top:0">
+    const text = await AI.analyzeSkin(_skinPhotos);
+    const formatted = text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    result.innerHTML=`<div class="ai-result-box" style="margin-top:0">
       <div style="line-height:1.85;font-size:.8rem">${formatted}</div>
-      <button class="btn-sm btn-outline" style="margin-top:.8rem"
-        onclick="sendAnalysisToChat()">שלחי לצ'אט לשאלות נוספות</button>
+      <button class="btn-sm btn-outline" style="margin-top:.8rem" onclick="sendAnalysisToChat()">שלחי לצ'אט לשאלות נוספות</button>
     </div>`;
-    // Store last analysis for chat
     window._lastSkinAnalysis = text;
   } catch(e){
-    result.innerHTML = `<div class="ai-result-box ai-warning">שגיאה: ${e.message}</div>`;
+    result.innerHTML=`<div class="ai-result-box ai-warning">שגיאה: ${e.message}</div>`;
   }
-  btn.disabled = false;
-  btn.innerHTML = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg> נתחי עור עם AI';
+  btn.disabled=false;
+  btn.innerHTML=`<svg viewBox="0 0 256 256" fill="currentColor" width="14" height="14"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg> <span id="analyze-btn-label">נתחי ${_skinPhotos.length} ${_skinPhotos.length===1?'תמונה':'תמונות'} עם AI</span>`;
 }
 
 function sendAnalysisToChat(){
   if(!window._lastSkinAnalysis) return;
   switchTab('ai');
-  // Scroll to chat
   document.querySelector('.chat-container')?.scrollIntoView({behavior:'smooth'});
   appendMsg('להלן ניתוח עור הפנים שקיבלתי. יש לי שאלות נוספות:', 'user');
-  _chatHistory.push({role:'user', content:`ניתוח עור הפנים שלי: ${window._lastSkinAnalysis}\n\nיש לי שאלות נוספות לגבי הניתוח הזה.`});
+  _chatHistory.push({role:'user', content:`ניתוח עור הפנים שלי:\n${window._lastSkinAnalysis}\n\nיש לי שאלות נוספות.`});
   appendMsg('קראתי את ניתוח העור שלך. מה תרצי לדעת?', 'ai');
   _chatHistory.push({role:'assistant', content:'קראתי את ניתוח העור שלך. מה תרצי לדעת?'});
+}
+
+/* ═══════════════════════════════════════════
+   PRODUCT SCAN (camera → shelf)
+═══════════════════════════════════════════ */
+let _scanPhotoData = null;
+
+function openScanModal(){
+  _scanPhotoData=null;
+  document.getElementById('scan-placeholder').style.display='block';
+  document.getElementById('scan-preview').style.display='none';
+  document.getElementById('scan-result').innerHTML='';
+  document.getElementById('scan-run-btn').style.display='none';
+  document.getElementById('modal-scan').classList.add('open');
+}
+
+function closeScanModal(){
+  document.getElementById('modal-scan').classList.remove('open');
+}
+
+function handleScanSelect(e){
+  const file=e.target.files[0];
+  if(file) loadScanPhoto(file);
+  e.target.value='';
+}
+
+function handleScanDrop(e){
+  e.preventDefault();
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith('image/')) loadScanPhoto(file);
+}
+
+function loadScanPhoto(file){
+  compressImage(file, 1024, 0.85, dataUrl=>{
+    _scanPhotoData={ base64: dataUrl.split(',')[1], mediaType:'image/jpeg' };
+    document.getElementById('scan-preview-img').src=dataUrl;
+    document.getElementById('scan-placeholder').style.display='none';
+    document.getElementById('scan-preview').style.display='block';
+    document.getElementById('scan-run-btn').style.display='inline-flex';
+    document.getElementById('scan-result').innerHTML='';
+  });
+}
+
+async function runScan(){
+  if(!_scanPhotoData){ UI.toast('העלי תמונה קודם'); return; }
+  const btn=document.getElementById('scan-run-btn');
+  btn.disabled=true; btn.textContent='מזהה...';
+  document.getElementById('scan-result').innerHTML='<div class="ai-loading"><div class="spinner"></div><span>AI מזהה מוצרים...</span></div>';
+  try {
+    const res = await AI.scanProducts(_scanPhotoData.base64, _scanPhotoData.mediaType);
+    const products = res?.products||[];
+    if(!products.length){
+      document.getElementById('scan-result').innerHTML='<div class="ai-result-box ai-warning">לא זיהיתי מוצרי טיפוח ברורים. נסי תמונה ברורה יותר עם תווית הנראית לעין.</div>';
+    } else {
+      renderScanResults(products);
+    }
+  } catch(e){
+    document.getElementById('scan-result').innerHTML=`<div class="ai-result-box ai-warning">שגיאה: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='זהי מוצרים';
+}
+
+function renderScanResults(products){
+  const catLabels = {cleanser:'קלנזר',toner:'טונר',exfoliant:'פילינג',serum:'סרום',eye_care:'עיניים',moisturizer:'מויסט',spf:'SPF',retinoid:'רטינואיד',treatment:'טיפול',mask:'מסכה',oil:'שמן',other:'אחר'};
+  const html = products.map((p,i)=>`
+    <div id="scan-item-${i}" style="padding:.7rem;border:1.5px solid var(--border);border-radius:10px;margin-bottom:.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+        <div style="flex:1">
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${p.brand||''} ${p.name}</div>
+          <div style="font-size:.7rem;color:var(--text-soft);margin-top:.15rem">${catLabels[p.category]||p.category}${p.subCat?' · '+p.subCat:''} · ${(p.timeOfUse||[]).map(t=>t==='morning'?'🌅':'🌙').join('')}</div>
+          ${p.note?`<div style="font-size:.68rem;color:var(--latte);margin-top:.2rem">${p.note}</div>`:''}
+        </div>
+        <button onclick="addScannedProduct(${i})" id="scan-add-${i}" style="background:var(--latte);color:#fff;border:none;border-radius:8px;padding:.35rem .7rem;font-size:.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ הוספה</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('scan-result').innerHTML=`
+    <div style="margin-top:.5rem">
+      <div style="font-size:.75rem;color:var(--text-soft);margin-bottom:.5rem">זוהו ${products.length} מוצר${products.length!==1?'ים':''} — בחרי מה להוסיף:</div>
+      ${html}
+      ${products.length>1?`<button onclick="addAllScannedProducts()" class="btn-sm btn-latte" style="width:100%;justify-content:center;margin-top:.3rem">הוסיפי הכל (${products.length})</button>`:''}
+    </div>`;
+  // Store for batch add
+  window._scannedProducts = products;
+}
+
+function addScannedProduct(i){
+  const p = window._scannedProducts?.[i];
+  if(!p) return;
+  DB.addProduct({
+    brand: p.brand||'',
+    name: p.name,
+    category: p.category||'other',
+    subCat: p.subCat||'',
+    timeOfUse: p.timeOfUse||[],
+    notes: p.note||'',
+    active: true,
+    aiClassified: true
+  });
+  const btn=document.getElementById(`scan-add-${i}`);
+  if(btn){ btn.textContent='✓ נוסף'; btn.disabled=true; btn.style.background='var(--border)'; btn.style.color='var(--text-soft)'; }
+  renderProducts();
+  UI.toast(`${p.brand||''} ${p.name} נוסף לספרייה ✓`);
+}
+
+function addAllScannedProducts(){
+  const products = window._scannedProducts||[];
+  products.forEach((_,i)=>addScannedProduct(i));
+  UI.toast(`${products.length} מוצרים נוספו לספרייה ✓`);
 }
 (function init(){
   renderRoutines();
