@@ -972,7 +972,7 @@ conflicts = שמות קטגוריות שאסור לשלב עם מוצר זה ב�
   const buildRoutine = async (routineName, routineDesc, program, products) => {
     const list = products.map(p=>`[${p.id}] ${p.brand} ${p.name} (${p.category}${p.subCat?', '+p.subCat:''})`).join('\n');
     const sys = `אתה מומחית טיפוח עור. בני רוטינה מהמוצרים. ענה ב-JSON בלבד ללא שום טקסט אחר:
-{"steps":[{"productId":"xxx","order":1,"note":"הוראה קצרה בעברית"}],"warning":"אזהרה אם יש|null","tip":"טיפ שימושי קצר בעברית"}
+{"steps":[{"productId":"xxx","order":1,"note":"הוראה יישומית קצרה — כמות, תנועה, טכניקה","explanation":"למה המוצר הזה בשלב הזה? מה הוא עושה לעור ומה התועלת הספציפית שלו ברוטינה הזו"}],"warning":"אזהרה אם יש|null","tip":"טיפ שימושי קצר בעברית"}
 
 חוקים קשיחים:
 • אל תשלבי exfoliant ו-retinoid באותה רוטינה
@@ -981,12 +981,13 @@ conflicts = שמות קטגוריות שאסור לשלב עם מוצר זה ב�
 • retinoid: תמיד אחרי moisturizer
 • סדר קנוני: cleanser→toner→exfoliant→serum→eye_care→moisturizer→spf/retinoid→mask
 • כלולי רק מוצרים שמתאימים לסוג הרוטינה הזו
-• אם program ≠ null — כלולי רק מוצרים מתאימים לתכנית הזו`;
+• אם program ≠ null — כלולי רק מוצרים מתאימים לתכנית הזו
+• ה-explanation חייב להיות 1-2 משפטים בעברית, ספציפי למוצר הזה ולעור`;
     const prompt = `רוטינת "${routineName}" (${routineDesc||''})${program?`, תכנית: ${program}`:''}
 
 מוצרים זמינים ופעילים:
 ${list}`;
-    const txt = await _call([{role:'user',content:prompt}], sys, 800);
+    const txt = await _call([{role:'user',content:prompt}], sys, 1000);
     return _parseJSON(txt);
   };
 
@@ -1382,9 +1383,13 @@ async function openAIBuildRoutine(routineId){
     const stepsHtml = result.steps.map((s,i)=>{
       const p = prodMap[s.productId];
       if(!p) return '';
-      return `<div style="padding:.4rem 0;border-bottom:1px solid rgba(234,222,207,.4);font-size:.78rem;color:var(--text-dark);display:flex;align-items:flex-start;gap:.5rem;flex-direction:row-reverse">
-        <span style="background:var(--latte);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;flex-shrink:0;margin-top:2px">${i+1}</span>
-        <div><strong>${p.brand?p.brand+' ':''}${p.name}</strong>${s.note?`<br><span style="color:var(--text-soft);font-size:.7rem">${s.note}</span>`:''}</div>
+      return `<div style="padding:.55rem 0;border-bottom:1px solid rgba(234,222,207,.4);display:flex;align-items:flex-start;gap:.6rem;flex-direction:row-reverse">
+        <span style="background:var(--latte);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;flex-shrink:0;margin-top:2px">${i+1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${p.brand?p.brand+' ':''}${p.name}</div>
+          ${s.note?`<div style="font-size:.72rem;color:var(--latte);margin-top:.2rem">← ${s.note}</div>`:''}
+          ${s.explanation?`<div style="font-size:.71rem;color:var(--text-soft);margin-top:.25rem;line-height:1.55;padding:.3rem .5rem;background:rgba(216,207,198,.3);border-radius:6px">${s.explanation}</div>`:''}
+        </div>
       </div>`;
     }).filter(Boolean).join('');
     
@@ -1941,16 +1946,27 @@ function handlePhotoDrop(e){
 function loadPhoto(file){
   const reader = new FileReader();
   reader.onload = ev => {
-    const dataUrl = ev.target.result;
-    const base64 = dataUrl.split(',')[1];
-    const mediaType = file.type;
-    _photoData = { base64, mediaType };
-    // Show preview
-    document.getElementById('skin-photo-img').src = dataUrl;
-    document.getElementById('skin-photo-preview').style.display = 'block';
-    document.getElementById('skin-photo-placeholder').style.display = 'none';
-    document.getElementById('analyze-btn').style.display = 'flex';
-    document.getElementById('skin-analysis-result').innerHTML = '';
+    const img = new Image();
+    img.onload = () => {
+      // Compress to max 1024px, JPEG 0.82 — keeps base64 under ~400KB
+      const MAX = 1024;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if(w > MAX || h > MAX){
+        if(w >= h){ h = Math.round(h * MAX/w); w = MAX; }
+        else      { w = Math.round(w * MAX/h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.82);
+      _photoData = { base64: compressed.split(',')[1], mediaType: 'image/jpeg' };
+      document.getElementById('skin-photo-img').src = compressed;
+      document.getElementById('skin-photo-preview').style.display = 'block';
+      document.getElementById('skin-photo-placeholder').style.display = 'none';
+      document.getElementById('analyze-btn').style.display = 'flex';
+      document.getElementById('skin-analysis-result').innerHTML = '';
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
