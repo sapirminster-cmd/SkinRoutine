@@ -482,12 +482,301 @@ body{
 @keyframes fadeUp{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 @keyframes spin{ to{transform:rotate(360deg)} }
 @keyframes typingPulse{ 0%,100%{opacity:.3;transform:scale(.9)} 50%{opacity:1;transform:scale(1.1)} }
+
+/* ═══════════════ ONBOARDING ═══════════════ */
+#onboarding-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:var(--ivory);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  animation:fadeUp .3s ease;
+}
+#onboarding-overlay.hidden{ display:none; }
+.ob-header{
+  padding:2rem 1.5rem 1rem;
+  text-align:center;
+}
+.ob-title-en{
+  font-family:'Italianno',cursive;
+  -webkit-text-stroke:.6px var(--text-dark);
+  font-size:2.2rem;color:var(--text-dark);
+  letter-spacing:.04em;line-height:1;
+}
+.ob-subtitle{
+  font-size:.75rem;color:var(--text-soft);
+  margin-top:.3rem;letter-spacing:.05em;
+}
+.ob-steps-bar{
+  display:flex;justify-content:center;gap:.4rem;
+  padding:.5rem 1.5rem 1.2rem;
+}
+.ob-dot{
+  width:28px;height:3px;border-radius:2px;
+  background:var(--border);transition:background .3s;
+}
+.ob-dot.active{ background:var(--latte); }
+.ob-dot.done{ background:var(--rose); }
+.ob-content{
+  flex:1;padding:0 1.2rem 1.5rem;
+  max-width:480px;margin:0 auto;width:100%;
+}
+.ob-step{ display:none; }
+.ob-step.active{ display:block; animation:fadeUp .25s ease; }
+.ob-step-title{
+  font-size:1rem;font-weight:700;
+  color:var(--text-dark);margin-bottom:.3rem;text-align:center;
+}
+.ob-step-sub{
+  font-size:.75rem;color:var(--text-soft);
+  text-align:center;margin-bottom:1.2rem;line-height:1.6;
+}
+.ob-field{ margin-bottom:1rem; }
+.ob-label{
+  font-size:.72rem;color:var(--text-mid);
+  font-weight:600;margin-bottom:.4rem;display:block;
+}
+.ob-input{
+  width:100%;padding:.65rem .9rem;
+  border:1.5px solid var(--border);border-radius:10px;
+  background:var(--card-bg);color:var(--text-dark);
+  font-size:.82rem;font-family:inherit;
+  transition:border-color .2s;outline:none;
+}
+.ob-input:focus{ border-color:var(--latte); }
+.ob-chips{
+  display:flex;flex-wrap:wrap;gap:.4rem;
+}
+.ob-chip{
+  padding:.35rem .75rem;border-radius:20px;
+  border:1.5px solid var(--border);
+  background:var(--card-bg);color:var(--text-mid);
+  font-size:.75rem;cursor:pointer;transition:all .18s;
+  font-family:inherit;
+}
+.ob-chip.selected{
+  background:var(--text-dark);color:var(--ivory);
+  border-color:var(--text-dark);
+}
+.ob-skin-type-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:.5rem;
+}
+.ob-skin-card{
+  padding:.7rem;border-radius:12px;
+  border:1.5px solid var(--border);
+  background:var(--card-bg);cursor:pointer;
+  text-align:center;transition:all .18s;
+}
+.ob-skin-card.selected{
+  border-color:var(--latte);
+  background:rgba(176,152,144,.1);
+}
+.ob-skin-card .sk-icon{ font-size:1.4rem;margin-bottom:.3rem; }
+.ob-skin-card .sk-name{ font-size:.78rem;font-weight:600;color:var(--text-dark); }
+.ob-skin-card .sk-desc{ font-size:.65rem;color:var(--text-soft);margin-top:.1rem;line-height:1.4; }
+.ob-footer{
+  padding:1rem 1.2rem calc(env(safe-area-inset-bottom) + 1rem);
+  display:flex;gap:.6rem;max-width:480px;margin:0 auto;width:100%;
+}
+.ob-btn-main{
+  flex:1;padding:.75rem;border-radius:12px;
+  background:var(--text-dark);color:var(--ivory);
+  border:none;font-size:.85rem;font-family:inherit;
+  cursor:pointer;font-weight:600;transition:opacity .2s;
+}
+.ob-btn-main:hover{ opacity:.88; }
+.ob-btn-skip{
+  padding:.75rem 1rem;border-radius:12px;
+  background:transparent;color:var(--text-soft);
+  border:1.5px solid var(--border);
+  font-size:.82rem;font-family:inherit;cursor:pointer;
+}
+.ob-photo-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:.5rem;
+  margin-bottom:.8rem;
+}
+.ob-add-photo{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:1.2rem;text-align:center;cursor:pointer;
+  transition:border-color .2s;
+}
+.ob-add-photo:hover{ border-color:var(--latte); }
+.ob-summary-item{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.5rem 0;border-bottom:1px solid var(--border);
+  font-size:.78rem;color:var(--text-dark);
+}
+.ob-summary-item:last-child{ border-bottom:none; }
+.ob-summary-icon{ font-size:1rem;flex-shrink:0; }
 </style>
 </head>
 <body>
 
 <!-- ════ TOAST ════ -->
 <div id="toast" class="toast"></div>
+
+<!-- ════ ONBOARDING ════ -->
+<div id="onboarding-overlay">
+  <div class="ob-header">
+    <div class="ob-title-en">Skin Ritual</div>
+    <div class="ob-subtitle">שגרת טיפוח · Smart & Personal</div>
+  </div>
+
+  <!-- Progress dots -->
+  <div class="ob-steps-bar">
+    <div class="ob-dot active" id="ob-dot-0"></div>
+    <div class="ob-dot" id="ob-dot-1"></div>
+    <div class="ob-dot" id="ob-dot-2"></div>
+  </div>
+
+  <div class="ob-content">
+
+    <!-- Step 0: Basic info -->
+    <div class="ob-step active" id="ob-step-0">
+      <div class="ob-step-title">ברוכה הבאה ✦</div>
+      <div class="ob-step-sub">כמה פרטים קטנים כדי להתאים לך את החוויה</div>
+
+      <div class="ob-field">
+        <label class="ob-label">שם (אופציונלי)</label>
+        <input class="ob-input" id="ob-name" type="text" placeholder="למשל: ספיר" autocomplete="off">
+      </div>
+
+      <div class="ob-field">
+        <label class="ob-label">גיל (אופציונלי)</label>
+        <input class="ob-input" id="ob-age" type="number" placeholder="למשל: 28" min="13" max="99" style="width:120px">
+      </div>
+
+      <div class="ob-field">
+        <label class="ob-label">סוג עור</label>
+        <div class="ob-skin-type-grid">
+          <div class="ob-skin-card" data-skin="normal" onclick="selectSkinType(this)">
+            <div class="sk-icon">🌿</div>
+            <div class="sk-name">רגיל</div>
+            <div class="sk-desc">מאוזן, לא שמן ולא יבש</div>
+          </div>
+          <div class="ob-skin-card" data-skin="dry" onclick="selectSkinType(this)">
+            <div class="sk-icon">🏜️</div>
+            <div class="sk-name">יבש</div>
+            <div class="sk-desc">מרגיש חוסר לחות, מתקלף</div>
+          </div>
+          <div class="ob-skin-card" data-skin="oily" onclick="selectSkinType(this)">
+            <div class="sk-icon">💧</div>
+            <div class="sk-name">שמן</div>
+            <div class="sk-desc">מבריק, נקבוביות נראות</div>
+          </div>
+          <div class="ob-skin-card" data-skin="combination" onclick="selectSkinType(this)">
+            <div class="sk-icon">⚖️</div>
+            <div class="sk-name">מעורב</div>
+            <div class="sk-desc">T-zone שמן, לחיים יבשות</div>
+          </div>
+          <div class="ob-skin-card" data-skin="sensitive" onclick="selectSkinType(this)" style="grid-column:span 2">
+            <div class="sk-icon">🌸</div>
+            <div class="sk-name">רגיש</div>
+            <div class="sk-desc">מגיב בקלות, אדמומיות, גירויים</div>
+          </div>
+          <div class="ob-skin-card" data-skin="unknown" onclick="openSkinQuiz()" style="grid-column:span 2;border-style:dashed;border-color:var(--latte)">
+            <div class="sk-icon">🤔</div>
+            <div class="sk-name" style="color:var(--latte)">לא בטוחה — עזרי לי לגלות</div>
+            <div class="sk-desc">3 שאלות קצרות ו-AI תאבחן</div>
+          </div>
+        </div>
+
+        <!-- Skin quiz panel -->
+        <div id="skin-quiz-panel" style="display:none;margin-top:.8rem;background:rgba(217,196,198,.15);border:1.5px solid var(--rose);border-radius:12px;padding:.9rem">
+          <div style="font-size:.78rem;font-weight:700;color:var(--text-dark);margin-bottom:.8rem;text-align:center">שאלון סוג עור — 3 שאלות</div>
+
+          <!-- Q1 -->
+          <div class="ob-field" style="margin-bottom:.8rem">
+            <label class="ob-label">שעתיים אחרי ניקוי הפנים, העור שלך נראה...</label>
+            <div class="ob-chips" id="sq-q1">
+              <button class="ob-chip" data-val="tight_dry" onclick="sqSelect(this,'sq-q1')">מתוח ויבש</button>
+              <button class="ob-chip" data-val="balanced" onclick="sqSelect(this,'sq-q1')">נוח ומאוזן</button>
+              <button class="ob-chip" data-val="shiny_all" onclick="sqSelect(this,'sq-q1')">מבריק בכל הפנים</button>
+              <button class="ob-chip" data-val="shiny_tzone" onclick="sqSelect(this,'sq-q1')">מבריק רק ב-T-zone</button>
+            </div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="ob-field" style="margin-bottom:.8rem">
+            <label class="ob-label">הנקבוביות שלך...</label>
+            <div class="ob-chips" id="sq-q2">
+              <button class="ob-chip" data-val="invisible" onclick="sqSelect(this,'sq-q2')">כמעט לא נראות</button>
+              <button class="ob-chip" data-val="visible_nose" onclick="sqSelect(this,'sq-q2')">נראות באזור האף בעיקר</button>
+              <button class="ob-chip" data-val="enlarged" onclick="sqSelect(this,'sq-q2')">מורחבות ובולטות</button>
+              <button class="ob-chip" data-val="reactive" onclick="sqSelect(this,'sq-q2')">מגיבות למוצרים</button>
+            </div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="ob-field" style="margin-bottom:.9rem">
+            <label class="ob-label">כשמרחת קרם לחות חדש, העור שלך...</label>
+            <div class="ob-chips" id="sq-q3">
+              <button class="ob-chip" data-val="absorbs_fast" onclick="sqSelect(this,'sq-q3')">סופג מהר ומרגיש טוב</button>
+              <button class="ob-chip" data-val="feels_heavy" onclick="sqSelect(this,'sq-q3')">מרגיש כבד ושמנוני</button>
+              <button class="ob-chip" data-val="still_dry" onclick="sqSelect(this,'sq-q3')">עדיין מרגיש יבש</button>
+              <button class="ob-chip" data-val="irritated" onclick="sqSelect(this,'sq-q3')">מגיב / מאדים לפעמים</button>
+            </div>
+          </div>
+
+          <button id="sq-diagnose-btn" class="ob-btn-main" style="width:100%;font-size:.8rem" onclick="diagnoseSkinType()">אבחני את סוג העור שלי ✦</button>
+          <div id="sq-result" style="margin-top:.7rem;font-size:.78rem;line-height:1.6;text-align:center"></div>
+        </div>
+      </div>
+
+      <div class="ob-field">
+        <label class="ob-label">דאגות עיקריות (בחרי הכל שרלוונטי)</label>
+        <div class="ob-chips" id="ob-concerns">
+          <button class="ob-chip" data-val="hyperpigmentation" onclick="toggleChip(this)">היפרפיגמנטציה</button>
+          <button class="ob-chip" data-val="pores" onclick="toggleChip(this)">נקבוביות מורחבות</button>
+          <button class="ob-chip" data-val="redness" onclick="toggleChip(this)">אדמומיות</button>
+          <button class="ob-chip" data-val="texture" onclick="toggleChip(this)">טקסטורה לא אחידה</button>
+          <button class="ob-chip" data-val="acne" onclick="toggleChip(this)">אקנה / פצעונים</button>
+          <button class="ob-chip" data-val="dryness" onclick="toggleChip(this)">יובש / חוסר לחות</button>
+          <button class="ob-chip" data-val="wrinkles" onclick="toggleChip(this)">קמטים / קווי הבעה</button>
+          <button class="ob-chip" data-val="dullness" onclick="toggleChip(this)">חיוורון / חוסר זוהר</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: Skin photos -->
+    <div class="ob-step" id="ob-step-1">
+      <div class="ob-step-title">ניתוח עור ראשוני 📸</div>
+      <div class="ob-step-sub">העלי עד 4 תמונות לניתוח AI מותאם אישית.<br>ניתן לדלג — אפשר לעשות זאת מאוחר יותר.</div>
+
+      <div class="ob-photo-grid" id="ob-photo-grid"></div>
+
+      <div id="ob-add-photo-btn" class="ob-add-photo"
+        onclick="document.getElementById('ob-photo-input').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--latte)'"
+        ondragleave="this.style.borderColor=''"
+        ondrop="handleObPhotoDrop(event)">
+        <div style="font-size:1.5rem;margin-bottom:.3rem">📸</div>
+        <div style="font-size:.78rem;color:var(--text-soft)">לחצי להוספת תמונה</div>
+        <div style="font-size:.65rem;color:var(--text-soft);margin-top:.1rem">JPG · PNG · WEBP · עד 4 תמונות</div>
+      </div>
+      <input type="file" id="ob-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleObPhotoSelect(event)">
+
+      <div id="ob-photo-status" style="margin-top:.6rem;font-size:.72rem;color:var(--text-soft);text-align:center"></div>
+    </div>
+
+    <!-- Step 2: Summary + launch -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-step-title">הכל מוכן ✦</div>
+      <div class="ob-step-sub">הפרופיל שלך נשמר. תוכלי לעדכן אותו בכל עת מהגדרות.</div>
+
+      <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:14px;padding:1rem;margin-bottom:1rem">
+        <div id="ob-summary-content"></div>
+      </div>
+
+      <div id="ob-analysis-status" style="font-size:.73rem;color:var(--latte);text-align:center;min-height:1.4rem;line-height:1.4"></div>
+    </div>
+
+  </div><!-- /ob-content -->
+
+  <div class="ob-footer">
+    <button class="ob-btn-skip" id="ob-skip-btn" onclick="obSkip()">דלגי</button>
+    <button class="ob-btn-main" id="ob-next-btn" onclick="obNext()">המשך →</button>
+  </div>
+</div>
 
 <!-- ════ MODAL: Product ════ -->
 <div id="modal-product" class="modal-backdrop">
@@ -704,6 +993,20 @@ body{
       <span class="qa-icon">⚠️</span>
       <span class="qa-label">בדיקת קונפליקטים</span>
       <span class="qa-sub">האם הרוטינות בסדר?</span>
+    </button>
+  </div>
+
+  <!-- Smart Routine Builder card -->
+  <div class="card" style="margin-bottom:1rem">
+    <div class="section-label" style="margin-bottom:.6rem">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-45.54-48.85a36.05,36.05,0,0,1-11.46,10,37.71,37.71,0,0,1-6,2.54V192a8,8,0,0,1-16,0V179.6a37.71,37.71,0,0,1-6-2.54,36.05,36.05,0,0,1-11.46-10,8,8,0,0,1,12.92-9.4,20,20,0,0,0,6.31,5.51A21.16,21.16,0,0,0,128,165a12,12,0,0,0,0-24,36,36,0,1,1,35.65-40.42A8,8,0,0,1,148,102a20,20,0,1,0-20,21.86V112a8,8,0,0,1,16,0v2.15A36.1,36.1,0,0,1,154.46,167.15Z"/></svg>
+      רוטינות חכמות — AI
+    </div>
+    <p style="font-size:.71rem;color:var(--text-soft);margin-bottom:.8rem;line-height:1.6">AI יבנה לך רוטינות מותאמות לפי המוצרים שלך וניתוח עור הפנים. אפשר להוסיף ניתוח תמונה למעלה לתוצאה מדויקת יותר.</p>
+    <div id="smart-routines-result"></div>
+    <button class="btn-sm btn-latte" style="width:100%;justify-content:center" onclick="buildSmartRoutines()">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="14" height="14"><path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/></svg>
+      צרי רוטינות מומלצות
     </button>
   </div>
 
@@ -1030,14 +1333,30 @@ ${list}`;
   };
 
   /* AI Chat */
+  /* Build profile context string for AI prompts */
+  const _profileCtx = () => {
+    try {
+      const p = JSON.parse(localStorage.getItem('sr_profile_v1')||'null');
+      if(!p) return '';
+      const skinLabels = {normal:'רגיל',dry:'יבש',oily:'שמן',combination:'מעורב',sensitive:'רגיש'};
+      const concernLabels = {hyperpigmentation:'היפרפיגמנטציה',pores:'נקבוביות מורחבות',redness:'אדמומיות',texture:'טקסטורה לא אחידה',acne:'אקנה',dryness:'יובש',wrinkles:'קמטים',dullness:'חוסר זוהר'};
+      const parts = [];
+      if(p.name) parts.push(`שם: ${p.name}`);
+      if(p.age)  parts.push(`גיל: ${p.age}`);
+      if(p.skinType) parts.push(`סוג עור: ${skinLabels[p.skinType]||p.skinType}`);
+      if(p.concerns?.length) parts.push(`דאגות: ${p.concerns.map(c=>concernLabels[c]||c).join(', ')}`);
+      return parts.length ? `פרופיל משתמש: ${parts.join(' · ')}` : '';
+    } catch{ return ''; }
+  };
+
   const chat = async (history, products, routines) => {
     const ctx = [
       `ספריית מוצרים (${products.length}):\n${products.filter(p=>p.active).map(p=>`• ${p.brand} ${p.name} [${p.category}]`).join('\n')}`,
       `\nרוטינות: ${routines.map(r=>`${r.name}(${(r.steps||[]).length} שלבים)`).join(', ')}`
     ].join('\n');
+    const profileLine = _profileCtx();
     const sys = `אתה יועץ טיפוח עור מקצועי. השתמש בלשון ניטרלית. עני בעברית.
-פרופיל: אישה 32, ישראל, מתאגרפת + אימוני כוח. דאגות: נקבוביות, היפרפיגמנטציה, אדמומיות, טקסטורה.
-${ctx}
+${profileLine ? profileLine+'\n' : ''}${ctx}
 ענה בעברית, קצר ומעשי, ≤120 מילים. אל תחזרי על המוצרים ברשימה אלא אם שואלים ספציפית.`;
     const txt = await _call(history, sys, 500);
     return txt;
@@ -1121,12 +1440,59 @@ ${photos.length>1?'קיבלת מספר תמונות מזוויות שונות �
     return _parseJSON(d.content?.[0]?.text||'{}');
   };
 
-  return { classifyProduct, buildRoutine, chat, quickAction, analyzeSkin, scanProducts };
+  /* Suggest full routine plan based on products + optional skin analysis */
+  const suggestRoutines = async (products, skinAnalysis) => {
+    const list = products.map(p=>`[${p.id}] ${p.brand} ${p.name} (${p.category}${p.subCat?', '+p.subCat:''})`).join('\n');
+    const skinCtx = skinAnalysis ? `\nניתוח עור אישי:\n${skinAnalysis}` : '';
+    const profileLine = _profileCtx();
+    const sys = `אתה מומחית טיפוח עור. המשתמש רוצה לבנות רוטינות מותאמות אישית מהמוצרים שיש לה.
+${profileLine ? profileLine+'\n' : ''}ענה ב-JSON בלבד ללא שום טקסט אחר:
+{
+  "routines": [
+    {
+      "name": "שם הרוטינה",
+      "emoji": "אימוג'י",
+      "description": "תיאור קצר",
+      "timeOfDay": "morning|evening|weekly",
+      "rationale": "למה הרוטינה הזו מתאימה לפרופיל זה — 1-2 משפטים",
+      "steps": [{"productId":"xxx","order":1,"note":"הוראה יישומית","explanation":"למה המוצר הזה פה"}]
+    }
+  ],
+  "skinInsights": "תובנות קצרות על העור לפי הניתוח — אם יש",
+  "missingCategories": ["קטגוריות חסרות שכדאי לרכוש"]
+}
+
+חוקים:
+• הצעי 2-4 רוטינות בסה"כ (בוקר + לילה תמיד, + שבועית/ספציפית אם מתאים)
+• כלולי רק מוצרים מהרשימה
+• אל תשלבי exfoliant ו-retinoid באותה רוטינה
+• SPF רק בבוקר, retinoid רק בלילה`;
+    const txt = await _call([{role:'user', content:`מוצרים זמינים:\n${list}${skinCtx}\n\nאנא הצעי את הרוטינות המומלצות.`}], sys, 1500);
+    return _parseJSON(txt);
+  };
+
+  return { classifyProduct, buildRoutine, chat, quickAction, analyzeSkin, scanProducts, suggestRoutines, _callPublic: _call };
 })();
 
 /* ═══════════════════════════════════════════
    UI HELPERS
 ═══════════════════════════════════════════ */
+/**
+ * Escapes user-supplied strings before injecting into innerHTML.
+ * Prevents XSS from product names, notes, AI-returned text, etc.
+ * @param {string} str
+ * @returns {string}
+ */
+function esc(str){
+  if(str==null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 const UI = {
   toast(msg, dur=2400){
     const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
@@ -1322,9 +1688,9 @@ function renderStepsHtml(steps, routineId, program, products){
         <div class="step-check" style="background:var(--border)">${CHK}</div>
         <div class="step-num" style="background:var(--border);color:var(--text-soft)">—</div>
         <div class="step-content">
-          <span class="step-brand">${p.brand||''}</span>
-          <span class="step-product">${p.name}</span>
-          <span class="step-optional"><span class="skip-tag">דולג</span>${s._skipReason||'כבר יושם'}</span>
+          <span class="step-brand">${esc(p.brand||'')}</span>
+          <span class="step-product">${esc(p.name)}</span>
+          <span class="step-optional"><span class="skip-tag">דולג</span>${esc(s._skipReason||'כבר יושם')}</span>
         </div>
       </div>`;
     }
@@ -1336,10 +1702,10 @@ function renderStepsHtml(steps, routineId, program, products){
       <div class="step-check">${CHK}</div>
       <div class="step-num">${visibleIndex}</div>
       <div class="step-content">
-        <span class="step-brand">${p.brand||''}</span>
-        <span class="step-product">${p.name}</span>
-        ${s._optionalNote?`<span class="step-optional">✦ ${s._optionalNote}</span>`:''}
-        ${s.note&&!s._optionalNote?`<span class="step-note">${s.note}</span>`:''}
+        <span class="step-brand">${esc(p.brand||'')}</span>
+        <span class="step-product">${esc(p.name)}</span>
+        ${s._optionalNote?`<span class="step-optional">✦ ${esc(s._optionalNote)}</span>`:''}
+        ${s.note&&!s._optionalNote?`<span class="step-note">${esc(s.note)}</span>`:''}
         <div class="step-cat">
           ${UI.catBadge(p.category)}
         </div>
@@ -1454,20 +1820,23 @@ async function openAIBuildRoutine(routineId){
       return `<div style="padding:.55rem 0;border-bottom:1px solid rgba(234,222,207,.4);display:flex;align-items:flex-start;gap:.6rem;flex-direction:row-reverse">
         <span style="background:var(--latte);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;flex-shrink:0;margin-top:2px">${i+1}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${p.brand?p.brand+' ':''}${p.name}</div>
-          ${s.note?`<div style="font-size:.72rem;color:var(--latte);margin-top:.2rem">← ${s.note}</div>`:''}
-          ${s.explanation?`<div style="font-size:.71rem;color:var(--text-soft);margin-top:.25rem;line-height:1.55;padding:.3rem .5rem;background:rgba(216,207,198,.3);border-radius:6px">${s.explanation}</div>`:''}
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${esc(p.brand?p.brand+' ':'')}${esc(p.name)}</div>
+          ${s.note?`<div style="font-size:.72rem;color:var(--latte);margin-top:.2rem">← ${esc(s.note)}</div>`:''}
+          ${s.explanation?`<div style="font-size:.71rem;color:var(--text-soft);margin-top:.25rem;line-height:1.55;padding:.3rem .5rem;background:rgba(216,207,198,.3);border-radius:6px">${esc(s.explanation)}</div>`:''}
         </div>
       </div>`;
     }).filter(Boolean).join('');
     
+    // Store steps safely in memory — not in onclick attribute
+    window._pendingAISteps = { routineId, program: prog||'', steps: result.steps };
+
     resultEl.innerHTML = `<div class="ai-result-box" style="margin-top:.8rem">
       <strong>המלצת AI לרוטינת ${routine.name}${prog?` — ${prog}`:''}:</strong>
       <div style="margin:.6rem 0">${stepsHtml}</div>
-      ${result.warning?`<div style="margin-top:.5rem;color:#c0392b;font-size:.72rem">⚠️ ${result.warning}</div>`:''}
-      ${result.tip?`<span class="ai-tip">💡 ${result.tip}</span>`:''}
+      ${result.warning?`<div style="margin-top:.5rem;color:#c0392b;font-size:.72rem">⚠️ ${esc(result.warning)}</div>`:''}
+      ${result.tip?`<span class="ai-tip">💡 ${esc(result.tip)}</span>`:''}
       <div style="display:flex;gap:.5rem;margin-top:.8rem">
-        <button class="btn-sm btn-latte" onclick="applyAIRoutine('${routineId}','${prog||''}',${JSON.stringify(result.steps).replace(/'/g,'\\\'')})">
+        <button class="btn-sm btn-latte" onclick="applyAIRoutine('${esc(routineId)}','${esc(prog||'')}')">
           ✓ אמצי רוטינה זו
         </button>
         <button class="btn-sm btn-outline" onclick="this.closest('.ai-result-box').remove()">ביטול</button>
@@ -1478,7 +1847,12 @@ async function openAIBuildRoutine(routineId){
   }
 }
 
-function applyAIRoutine(routineId, program, steps){
+function applyAIRoutine(routineId, program){
+  // Steps stored safely in memory to avoid injection via onclick attribute
+  const pending = window._pendingAISteps;
+  if(!pending || pending.routineId !== routineId) return;
+  const steps = pending.steps;
+  window._pendingAISteps = null;
   DB.setSteps(routineId, steps, program||undefined);
   renderRoutines();
   // Re-open the accordion
@@ -1607,18 +1981,18 @@ function filterProducts(cat, btn){
   list.innerHTML = products.map((p,i)=>`
     <div class="product-card${p.active?'':' inactive'}" style="animation-delay:${i*0.04}s">
       <div class="product-info">
-        <span class="product-brand">${p.brand||''}</span>
-        <span class="product-name">${p.name}</span>
+        <span class="product-brand">${esc(p.brand||'')}</span>
+        <span class="product-name">${esc(p.name)}</span>
         <div class="product-meta">
           ${UI.catBadge(p.category)}
-          ${p.subCat?`<span class="time-badge">${p.subCat}</span>`:''}
+          ${p.subCat?`<span class="time-badge">${esc(p.subCat)}</span>`:''}
           ${UI.timeBadge(p.timeOfUse)}
         </div>
-        ${p.notes?`<div style="font-size:.7rem;color:var(--text-soft);margin-top:.3rem;font-style:italic">${p.notes}</div>`:''}
+        ${p.notes?`<div style="font-size:.7rem;color:var(--text-soft);margin-top:.3rem;font-style:italic">${esc(p.notes)}</div>`:''}
       </div>
       <div class="product-actions">
-        <button class="toggle-pill${p.active?' on':''}" onclick="toggleProductActive('${p.id}')" title="${p.active?'פעיל':'לא פעיל'}"></button>
-        <button class="icon-btn" onclick="openProductModal('${p.id}')" title="עריכה">
+        <button class="toggle-pill${p.active?' on':''}" onclick="toggleProductActive('${esc(p.id)}')" title="${p.active?'פעיל':'לא פעיל'}"></button>
+        <button class="icon-btn" onclick="openProductModal('${esc(p.id)}')" title="עריכה">
           <svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM51.31,160,136,75.31,152.69,92,68,176.68ZM48,179.31,76.69,208H48Zm48,25.38L79.31,188l84.68-84.69,16.69,16.7Z"/></svg>
         </button>
         <button class="icon-btn danger" onclick="confirmDeleteProduct('${p.id}')" title="מחיקה">
@@ -1827,6 +2201,116 @@ async function aiQuick(type){
   }
 }
 
+async function buildSmartRoutines(){
+  const products = DB.getProducts().filter(p=>p.active);
+  const resultEl = document.getElementById('smart-routines-result');
+
+  if(!products.length){
+    resultEl.innerHTML = `<div class="ai-result-box ai-warning" style="margin-bottom:.8rem">הוסיפי מוצרים לספרייה קודם — ב"מוצרים" או דרך סריקת מוצרים 📸</div>`;
+    return;
+  }
+
+  resultEl.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>AI בונה רוטינות מותאמות...</span></div>';
+
+  try {
+    const skinAnalysis = window._lastSkinAnalysis || null;
+    const res = await AI.suggestRoutines(products, skinAnalysis);
+
+    if(!res?.routines?.length){
+      resultEl.innerHTML = `<div class="ai-result-box ai-warning" style="margin-bottom:.8rem">לא הצלחתי לבנות רוטינות. נסי שוב.</div>`;
+      return;
+    }
+
+    const catLabels = {morning:'☀️ בוקר', evening:'🌙 לילה', weekly:'📅 שבועי'};
+    const prodMap = {};
+    products.forEach(p=>prodMap[p.id]=p);
+
+    const routinesHtml = res.routines.map((r,ri)=>{
+      const stepsHtml = (r.steps||[]).map((s,i)=>{
+        const p = prodMap[s.productId];
+        if(!p) return '';
+        return `<div style="padding:.45rem 0;border-bottom:1px solid rgba(234,222,207,.35);display:flex;align-items:flex-start;gap:.5rem;flex-direction:row-reverse">
+          <span style="background:var(--latte);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.58rem;flex-shrink:0;margin-top:2px">${i+1}</span>
+          <div style="flex:1">
+            <div style="font-size:.78rem;font-weight:600;color:var(--text-dark)">${esc(p.brand?p.brand+' ':'')}${esc(p.name)}</div>
+            ${s.note?`<div style="font-size:.69rem;color:var(--latte);margin-top:.1rem">← ${esc(s.note)}</div>`:''}
+            ${s.explanation?`<div style="font-size:.68rem;color:var(--text-soft);margin-top:.2rem;padding:.25rem .45rem;background:rgba(216,207,198,.3);border-radius:5px;line-height:1.5">${esc(s.explanation)}</div>`:''}
+          </div>
+        </div>`;
+      }).filter(Boolean).join('');
+
+      return `<div style="border:1.5px solid var(--border);border-radius:12px;padding:.9rem;margin-bottom:.7rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;flex-direction:row-reverse;justify-content:flex-end">
+          <span style="font-size:1.2rem">${esc(r.emoji||'✨')}</span>
+          <div>
+            <div style="font-size:.85rem;font-weight:700;color:var(--text-dark)">${esc(r.name)}</div>
+            <div style="font-size:.68rem;color:var(--text-soft)">${esc(catLabels[r.timeOfDay]||'')} · ${esc(r.description||'')}</div>
+          </div>
+        </div>
+        ${r.rationale?`<div style="font-size:.71rem;color:var(--latte);margin-bottom:.6rem;line-height:1.55;padding:.35rem .5rem;background:rgba(217,196,198,.2);border-radius:7px">💡 ${esc(r.rationale)}</div>`:''}
+        <div style="margin-bottom:.6rem">${stepsHtml}</div>
+        <button onclick="applySmartRoutine(${ri})" style="background:var(--latte);color:#fff;border:none;border-radius:8px;padding:.4rem .9rem;font-size:.73rem;cursor:pointer;width:100%">✓ אמצי רוטינה זו</button>
+      </div>`;
+    }).join('');
+
+    const insightsHtml = res.skinInsights
+      ? `<div style="font-size:.73rem;color:var(--text-mid);background:rgba(176,152,144,.1);border-radius:10px;padding:.7rem .9rem;margin-bottom:.8rem;line-height:1.65;border:1px solid var(--border)">
+          <strong>תובנות עור:</strong> ${esc(res.skinInsights)}
+        </div>` : '';
+
+    const missingHtml = res.missingCategories?.length
+      ? `<div style="font-size:.71rem;color:var(--text-soft);margin-top:.3rem">קטגוריות שכדאי להוסיף: ${res.missingCategories.map(c=>esc(c)).join(' · ')}</div>` : '';
+
+    resultEl.innerHTML = `<div style="margin-bottom:.8rem">
+      ${skinAnalysis?'<div style="font-size:.69rem;color:var(--latte);margin-bottom:.6rem">✦ הרוטינות בנויות בהתאם לניתוח עור הפנים שלך</div>':''}
+      ${insightsHtml}
+      ${routinesHtml}
+      ${missingHtml}
+    </div>`;
+
+    window._smartRoutinesData = res.routines;
+    window._smartRoutinesProducts = prodMap;
+
+  } catch(e){
+    resultEl.innerHTML = `<div class="ai-result-box ai-warning" style="margin-bottom:.8rem">שגיאה: ${e.message}</div>`;
+  }
+}
+
+function applySmartRoutine(ri){
+  const r = window._smartRoutinesData?.[ri];
+  if(!r) return;
+  const timeMap = {morning:'morning', evening:'night', weekly:'weekly'};
+  const targetId = timeMap[r.timeOfDay]||null;
+
+  if(targetId === 'morning' || targetId === 'night'){
+    // Update existing routine
+    const routines = DB.getRoutines();
+    const existing = routines.find(rt=>rt.id===targetId);
+    if(existing){
+      DB.setSteps(targetId, r.steps);
+      UI.toast(`רוטינת ${r.name} עודכנה ✓`);
+      switchTab('routines');
+      return;
+    }
+  }
+  // Create new custom routine
+  const newR = {
+    id: 'sr_'+Date.now(),
+    name: r.name,
+    emoji: r.emoji||'✨',
+    fixed: false,
+    description: r.description||'',
+    steps: r.steps||[],
+    programs:{}
+  };
+  const routines = DB.getRoutines();
+  routines.push(newR);
+  DB.saveRoutines(routines);
+  renderRoutines();
+  UI.toast(`רוטינת ${r.name} נוספה ✓`);
+  switchTab('routines');
+}
+
 /* ═══════════════════════════════════════════
    EXPORT / IMPORT
 ═══════════════════════════════════════════ */
@@ -1882,24 +2366,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySele
    DEFAULT DATA
 ═══════════════════════════════════════════ */
 function _defaultProducts(){
-  return [
-    {id:'p001',brand:'Drunk Elephant',name:'Beste No.9 Jelly Cleanser',category:'cleanser',subCat:'gel pH 5.5',timeOfUse:['morning','night'],notes:'פנים רטובות, 60 שניות',active:true},
-    {id:'p002',brand:'Sunday Riley',name:'C.E.O. 15% Vitamin C Serum',category:'serum',subCat:'brightening',timeOfUse:['morning'],notes:'על עור יבש לגמרי, דקה לפני הבא',active:true},
-    {id:'p003',brand:'Anua',name:'Niacinamide 10 + TXA 3 Serum',category:'serum',subCat:'treatment',timeOfUse:['morning','night'],notes:'',active:true},
-    {id:'p004',brand:'Dr.Jart+',name:'Brightamin Eye Serum Stick',category:'eye_care',subCat:'',timeOfUse:['morning'],notes:'לחיצות עדינות, אצבע טבעת',active:true},
-    {id:'p005',brand:'Ultra Violette',name:'Fave Fluid SPF 50+',category:'spf',subCat:'',timeOfUse:['morning'],notes:'2 אצבעות, 15 דק׳ לפני יציאה',active:true},
-    {id:'p006',brand:'Tatcha',name:'Pure One Step Camellia Cleansing Oil',category:'cleanser',subCat:'oil',timeOfUse:['night'],notes:'על עור יבש, עסאז׳ 60 שניות',active:true},
-    {id:'p007',brand:'Dr. Dennis Gross',name:'Alpha Beta Universal Daily Peel Pads',category:'exfoliant',subCat:'AHA+BHA',timeOfUse:['night'],notes:'שלב 1 → המתיני דקה → שלב 2',active:true},
-    {id:'p008',brand:'Glow Recipe',name:'Plum Plump Hyaluronic Serum',category:'serum',subCat:'hydrating',timeOfUse:['morning','night'],notes:'על עור מעט לח',active:true},
-    {id:'p009',brand:'Tatcha',name:'The Dewy Skin Cream',category:'moisturizer',subCat:'',timeOfUse:['night'],notes:'',active:true},
-    {id:'p010',brand:'VT Cosmetics',name:'Reedle Shot 100',category:'treatment',subCat:'micro-needle serum',timeOfUse:['night'],notes:'עקצוץ — נורמלי',active:true},
-    {id:'p011',brand:'Elizabeth Arden',name:'Retinol + HPR Ceramide Capsules',category:'retinoid',subCat:'',timeOfUse:['night'],notes:'תמיד אחרי קרם לחות',active:true},
-    {id:'p012',brand:'Dr.Jart+',name:'Cicapair Tiger Grass Repair Cream',category:'moisturizer',subCat:'repair',timeOfUse:['night'],notes:'',active:true},
-    {id:'p013',brand:'Dr. Althea',name:'345 Relief Cream',category:'moisturizer',subCat:'barrier repair',timeOfUse:['night'],notes:'',active:true},
-    {id:'p014',brand:'Glow Recipe',name:'Plum Plump Cream',category:'moisturizer',subCat:'',timeOfUse:['morning','night'],notes:'',active:true},
-    {id:'p015',brand:'Jason',name:'Rice Enzyme Mask',category:'mask',subCat:'enzyme',timeOfUse:['night'],notes:'15-20 דקות',active:true},
-    {id:'p016',brand:'Elizabeth Arden',name:'Peel-Off Mask',category:'mask',subCat:'peel',timeOfUse:['night'],notes:'עד שמתייבשת לגמרי',active:true},
-  ];
+  return []; // No seeded products — user builds their own shelf
 }
 
 function _defaultRoutines(){
@@ -1907,66 +2374,12 @@ function _defaultRoutines(){
     {
       id:'morning', name:'בוקר', emoji:'☀️', fixed:true,
       description:'כל יום · לפני יציאה',
-      steps:[
-        {productId:'p001',order:1,note:'פנים רטובות, 60 שניות'},
-        {productId:'p002',order:2,note:'על עור יבש, דקה לפני הבא'},
-        {productId:'p003',order:3,note:''},
-        {productId:'p004',order:4,note:''},
-        {productId:'p014',order:5,note:''},
-        {productId:'p005',order:6,note:'15 דק׳ לפני יציאה'},
-      ],
-      programs:{}
+      steps:[], programs:{}
     },
     {
       id:'night', name:'לילה', emoji:'🌙', fixed:true,
-      description:'Skin Cycling · לפי תכנית',
-      steps:[
-        {productId:'p006',order:1,note:'על עור יבש'},
-        {productId:'p001',order:2,note:''},
-      ],
-      programs:{
-        acids:[
-          {productId:'p006',order:1,note:'על עור יבש'},
-          {productId:'p001',order:2,note:''},
-          {productId:'p007',order:3,note:'שלב 1 → דקה → שלב 2'},
-          {productId:'p003',order:4,note:''},
-          {productId:'p008',order:5,note:''},
-          {productId:'p009',order:6,note:''},
-        ],
-        retinol:[
-          {productId:'p006',order:1,note:''},
-          {productId:'p001',order:2,note:''},
-          {productId:'p008',order:3,note:''},
-          {productId:'p009',order:4,note:''},
-          {productId:'p011',order:5,note:'מעל הקרם — תמיד אחרון'},
-        ],
-        recovery:[
-          {productId:'p001',order:1,note:''},
-          {productId:'p003',order:2,note:''},
-          {productId:'p008',order:3,note:''},
-          {productId:'p013',order:4,note:''},
-        ],
-        special:[
-          {productId:'p006',order:1,note:''},
-          {productId:'p001',order:2,note:''},
-          {productId:'p003',order:3,note:''},
-          {productId:'p008',order:4,note:''},
-          {productId:'p014',order:5,note:''},
-          {productId:'p015',order:6,note:'15-20 דקות'},
-        ]
-      }
-    },
-    {
-      id:'workout', name:'אחרי אימון', emoji:'🏋️', fixed:false,
-      description:'מיד אחרי האימון · מותאם לקונטקסט היום',
-      dependsOn:'morning',
-      steps:[
-        {productId:'p001',order:1,note:'מיד אחרי האימון — לא לדחות'},
-        {productId:'p003',order:2,note:'מרגיע אדמומיות פוסט-אימון'},
-        {productId:'p013',order:3,note:'משחזר את המחסום'},
-        {productId:'p005',order:4,note:'רק אם יוצאת — אחרי שהעור נרגע'},
-      ],
-      programs:{}
+      description:'כל יום · לפני שינה',
+      steps:[], programs:{}
     },
   ];
 }
@@ -2162,9 +2575,9 @@ function renderScanResults(products){
     <div id="scan-item-${i}" style="padding:.7rem;border:1.5px solid var(--border);border-radius:10px;margin-bottom:.5rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
         <div style="flex:1">
-          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${p.brand||''} ${p.name}</div>
-          <div style="font-size:.7rem;color:var(--text-soft);margin-top:.15rem">${catLabels[p.category]||p.category}${p.subCat?' · '+p.subCat:''} · ${(p.timeOfUse||[]).map(t=>t==='morning'?'🌅':'🌙').join('')}</div>
-          ${p.note?`<div style="font-size:.68rem;color:var(--latte);margin-top:.2rem">${p.note}</div>`:''}
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${esc(p.brand||'')} ${esc(p.name)}</div>
+          <div style="font-size:.7rem;color:var(--text-soft);margin-top:.15rem">${esc(catLabels[p.category]||p.category)}${p.subCat?' · '+esc(p.subCat):''} · ${(p.timeOfUse||[]).map(t=>t==='morning'?'🌅':'🌙').join('')}</div>
+          ${p.note?`<div style="font-size:.68rem;color:var(--latte);margin-top:.2rem">${esc(p.note)}</div>`:''}
         </div>
         <button onclick="addScannedProduct(${i})" id="scan-add-${i}" style="background:var(--latte);color:#fff;border:none;border-radius:8px;padding:.35rem .7rem;font-size:.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ הוספה</button>
       </div>
@@ -2204,11 +2617,269 @@ function addAllScannedProducts(){
   products.forEach((_,i)=>addScannedProduct(i));
   UI.toast(`${products.length} מוצרים נוספו לספרייה ✓`);
 }
+/* ═══════════════════════════════════════════
+   ONBOARDING
+═══════════════════════════════════════════ */
+const OB_KEY = 'sr_profile_v1';
+let _obStep = 0;
+let _obPhotos = []; // [{base64, mediaType, thumb}]
+const OB_STEPS = 3;
+
+/** Load saved profile; returns null if first run */
+function loadProfile(){ try{ return JSON.parse(localStorage.getItem(OB_KEY)||'null'); }catch{ return null; } }
+/** Save profile to localStorage */
+function saveProfile(p){ localStorage.setItem(OB_KEY, JSON.stringify(p)); }
+
+function selectSkinType(el){
+  document.querySelectorAll('.ob-skin-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  // Close quiz if open
+  if(el.dataset.skin !== 'unknown'){
+    document.getElementById('skin-quiz-panel').style.display = 'none';
+  }
+}
+
+function openSkinQuiz(){
+  // Mark the card as selected visually
+  document.querySelectorAll('.ob-skin-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelector('[data-skin="unknown"]').classList.add('selected');
+  const panel = document.getElementById('skin-quiz-panel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/** Single-select within a quiz question group */
+function sqSelect(el, groupId){
+  document.querySelectorAll(`#${groupId} .ob-chip`).forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function diagnoseSkinType(){
+  const q1 = document.querySelector('#sq-q1 .ob-chip.selected')?.dataset.val;
+  const q2 = document.querySelector('#sq-q2 .ob-chip.selected')?.dataset.val;
+  const q3 = document.querySelector('#sq-q3 .ob-chip.selected')?.dataset.val;
+
+  if(!q1 || !q2 || !q3){
+    document.getElementById('sq-result').innerHTML =
+      '<span style="color:var(--latte)">ענה על כל 3 השאלות קודם ✦</span>';
+    return;
+  }
+
+  const btn = document.getElementById('sq-diagnose-btn');
+  btn.disabled = true;
+  btn.textContent = 'מאבחן...';
+  document.getElementById('sq-result').innerHTML =
+    '<div class="ai-loading" style="justify-content:center"><div class="spinner"></div><span>AI מנתח...</span></div>';
+
+  // Rule-based fast fallback (no API needed for simple cases)
+  const rules = {
+    'tight_dry+invisible+still_dry':    'dry',
+    'shiny_all+enlarged+feels_heavy':   'oily',
+    'shiny_tzone+visible_nose+absorbs_fast': 'combination',
+    'balanced+invisible+absorbs_fast':  'normal',
+    'tight_dry+reactive+irritated':     'sensitive',
+    'shiny_tzone+reactive+irritated':   'sensitive',
+  };
+  const key = `${q1}+${q2}+${q3}`;
+  const ruleResult = rules[key] || null;
+
+  const key2 = localStorage.getItem('sr_api_key')||'';
+  let diagnosed = ruleResult;
+
+  if(!ruleResult && key2){
+    // Use AI for ambiguous cases
+    try {
+      const answerMap = {
+        tight_dry:'מתוח ויבש', balanced:'מאוזן', shiny_all:'מבריק בכל הפנים', shiny_tzone:'מבריק ב-T-zone',
+        invisible:'כמעט לא נראות', visible_nose:'נראות באזור האף', enlarged:'מורחבות', reactive:'מגיבות למוצרים',
+        absorbs_fast:'סופג מהר', feels_heavy:'מרגיש כבד', still_dry:'עדיין יבש', irritated:'מגיב/מאדים'
+      };
+      const prompt = `שאלון סוג עור:
+1. שעתיים אחרי ניקוי: ${answerMap[q1]||q1}
+2. נקבוביות: ${answerMap[q2]||q2}
+3. תגובה לקרם: ${answerMap[q3]||q3}
+
+ענה ב-JSON בלבד: {"skinType":"normal|dry|oily|combination|sensitive","reason":"משפט קצר בעברית למה"}`;
+      const res = await AI._callPublic([{role:'user',content:prompt}],
+        'אתה מומחה לטיפוח עור. אבחן סוג עור לפי תשובות שאלון. ענה ב-JSON בלבד.', 150);
+      const parsed = JSON.parse(res.replace(/```json|```/g,'').trim());
+      diagnosed = parsed.skinType || 'normal';
+      // Show reason
+      if(parsed.reason){
+        document.getElementById('sq-result').innerHTML =
+          `<div style="color:var(--text-soft);font-size:.72rem;margin-top:.3rem">${esc(parsed.reason)}</div>`;
+      }
+    } catch(e){ diagnosed = diagnosed || 'normal'; }
+  } else if(!ruleResult){
+    // No API key — best guess from answers
+    if(q1==='tight_dry' || q3==='still_dry') diagnosed = 'dry';
+    else if(q1==='shiny_all' || q3==='feels_heavy') diagnosed = 'oily';
+    else if(q1==='shiny_tzone') diagnosed = 'combination';
+    else if(q2==='reactive' || q3==='irritated') diagnosed = 'sensitive';
+    else diagnosed = 'normal';
+  }
+
+  const skinLabels = {normal:'רגיל 🌿', dry:'יבש 🏜️', oily:'שמן 💧', combination:'מעורב ⚖️', sensitive:'רגיש 🌸'};
+  const resultMsg = `<div style="font-weight:700;color:var(--text-dark);font-size:.85rem;margin-bottom:.3rem">
+    סוג העור שלך: ${skinLabels[diagnosed]||diagnosed}</div>`;
+  const existing = document.getElementById('sq-result').innerHTML;
+  document.getElementById('sq-result').innerHTML = resultMsg + existing;
+
+  // Auto-select the diagnosed skin type card
+  const card = document.querySelector(`[data-skin="${diagnosed}"]`);
+  if(card){ selectSkinType(card); }
+
+  // Close quiz after short delay
+  setTimeout(()=>{
+    document.getElementById('skin-quiz-panel').style.display = 'none';
+  }, 2200);
+
+  btn.disabled = false;
+  btn.textContent = 'אבחני את סוג העור שלי ✦';
+}
+
+function toggleChip(el){ el.classList.toggle('selected'); }
+
+function getObDots(){ return document.querySelectorAll('.ob-dot'); }
+
+function updateObDots(){
+  getObDots().forEach((d,i)=>{
+    d.classList.toggle('done', i < _obStep);
+    d.classList.toggle('active', i === _obStep);
+  });
+  // Update footer buttons
+  const skipBtn = document.getElementById('ob-skip-btn');
+  const nextBtn = document.getElementById('ob-next-btn');
+  if(_obStep === OB_STEPS - 1){
+    nextBtn.textContent = 'בואי נתחיל ✦';
+    skipBtn.style.display = 'none';
+  } else {
+    nextBtn.textContent = 'המשך →';
+    skipBtn.style.display = '';
+  }
+}
+
+function obSkip(){
+  if(_obStep === 1){
+    // Skip photos — go to summary without analysis
+    _obPhotos = [];
+    goToObStep(2);
+    buildObSummary(false);
+  } else {
+    obFinish();
+  }
+}
+
+function obNext(){
+  if(_obStep === 0){
+    goToObStep(1);
+  } else if(_obStep === 1){
+    goToObStep(2);
+    buildObSummary(_obPhotos.length > 0);
+  } else {
+    obFinish();
+  }
+}
+
+function goToObStep(n){
+  document.getElementById(`ob-step-${_obStep}`).classList.remove('active');
+  _obStep = n;
+  document.getElementById(`ob-step-${_obStep}`).classList.add('active');
+  updateObDots();
+  document.getElementById('onboarding-overlay').scrollTo({top:0, behavior:'smooth'});
+}
+
+function buildObSummary(willAnalyze){
+  const name  = document.getElementById('ob-name').value.trim();
+  const age   = document.getElementById('ob-age').value.trim();
+  const skinEl = document.querySelector('.ob-skin-card.selected');
+  const skinType = skinEl ? skinEl.dataset.skin : null;
+  const skinLabels = {normal:'רגיל',dry:'יבש',oily:'שמן',combination:'מעורב',sensitive:'רגיש'};
+  const concerns = [...document.querySelectorAll('#ob-concerns .ob-chip.selected')].map(c=>c.dataset.val);
+  const concernLabels = {hyperpigmentation:'היפרפיגמנטציה',pores:'נקבוביות',redness:'אדמומיות',texture:'טקסטורה',acne:'אקנה',dryness:'יובש',wrinkles:'קמטים',dullness:'חוסר זוהר'};
+
+  const items = [];
+  if(name)     items.push({icon:'👤', label: name});
+  if(age)      items.push({icon:'🎂', label: `${age} שנים`});
+  if(skinType) items.push({icon:'🌿', label: `עור ${skinLabels[skinType]||skinType}`});
+  if(concerns.length) items.push({icon:'🎯', label: concerns.map(c=>concernLabels[c]||c).join(' · ')});
+  if(_obPhotos.length) items.push({icon:'📸', label: `${_obPhotos.length} תמונות הועלו לניתוח`});
+
+  const html = items.length
+    ? items.map(it=>`<div class="ob-summary-item"><span class="ob-summary-icon">${it.icon}</span><span>${esc(it.label)}</span></div>`).join('')
+    : `<div style="font-size:.78rem;color:var(--text-soft);text-align:center;padding:.5rem">לא הוזנו פרטים — תוכלי להוסיף בהגדרות</div>`;
+
+  document.getElementById('ob-summary-content').innerHTML = html;
+
+  // Save profile
+  const profile = { name, age: age||null, skinType, concerns, createdAt: new Date().toISOString() };
+  saveProfile(profile);
+
+  // Run skin analysis if photos uploaded
+  if(willAnalyze && _obPhotos.length){
+    const statusEl = document.getElementById('ob-analysis-status');
+    statusEl.textContent = 'מנתח תמונות עם AI...';
+    AI.analyzeSkin(_obPhotos).then(text=>{
+      window._lastSkinAnalysis = text;
+      statusEl.textContent = '✓ ניתוח עור הושלם — יופיע בטאב AI';
+    }).catch(()=>{
+      statusEl.textContent = 'לא הצלחתי לנתח את התמונות כרגע';
+    });
+  }
+}
+
+function obFinish(){
+  document.getElementById('onboarding-overlay').classList.add('hidden');
+  // Copy ob photos to main analysis photos if present
+  if(_obPhotos.length){ _skinPhotos = [..._obPhotos]; renderSkinPhotoGrid(); }
+}
+
+/* Onboarding photos */
+function handleObPhotoSelect(e){
+  const file = e.target.files[0];
+  if(file) addObPhoto(file);
+  e.target.value='';
+}
+function handleObPhotoDrop(e){
+  e.preventDefault();
+  document.getElementById('ob-add-photo-btn').style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) addObPhoto(file);
+}
+function addObPhoto(file){
+  if(_obPhotos.length >= 4){ UI.toast('מקסימום 4 תמונות'); return; }
+  compressImage(file, 1024, 0.82, dataUrl=>{
+    _obPhotos.push({ base64: dataUrl.split(',')[1], mediaType:'image/jpeg', thumb: dataUrl });
+    renderObPhotoGrid();
+  });
+}
+function removeObPhoto(i){
+  _obPhotos.splice(i,1);
+  renderObPhotoGrid();
+}
+function renderObPhotoGrid(){
+  const grid = document.getElementById('ob-photo-grid');
+  const addBtn = document.getElementById('ob-add-photo-btn');
+  const status = document.getElementById('ob-photo-status');
+  grid.innerHTML = _obPhotos.map((p,i)=>`
+    <div style="position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#f0e8e0">
+      <img src="${p.thumb}" style="width:100%;height:100%;object-fit:cover">
+      <button onclick="removeObPhoto(${i})" style="position:absolute;top:5px;left:5px;width:24px;height:24px;border-radius:50%;background:rgba(62,44,34,.75);border:none;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>`).join('');
+  addBtn.style.display = _obPhotos.length >= 4 ? 'none' : 'block';
+  status.textContent = _obPhotos.length ? `${_obPhotos.length} תמונות מוכנות לניתוח` : '';
+}
+
 (function init(){
   renderRoutines();
   renderProducts();
   renderSettings();
   loadApiKeyUI();
+  // Show onboarding only on first run
+  if(loadProfile()){
+    document.getElementById('onboarding-overlay').classList.add('hidden');
+  }
+  // else: overlay is visible by default
 })();
 </script>
 <script>
