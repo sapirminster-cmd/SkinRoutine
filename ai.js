@@ -267,6 +267,46 @@ ${list}
   return _parseJSON(text);
 }
 
+
+async function aiCompareProducts(productIds, freeText, goal) {
+  const allProducts = DB.getProducts();
+
+  const libraryItems = productIds
+    .map(id => allProducts.find(p => p.id === id))
+    .filter(Boolean)
+    .map(p => {
+      const parts = [`**${p.brand ? p.brand+' ' : ''}${p.name}**`, `קטגוריה: ${p.category}`];
+      if (p.ingredients?.length) parts.push(`רכיבים: ${p.ingredients.join(', ')}`);
+      if (p.benefits?.length)    parts.push(`יתרונות: ${p.benefits.join(', ')}`);
+      if (p.warnings?.length)    parts.push(`אזהרות: ${p.warnings.join(', ')}`);
+      return parts.join(' | ');
+    });
+
+  const externalItems = freeText.filter(Boolean)
+    .map(t => `**${t}** (מוצר חיצוני)`);
+
+  const allItems = [...libraryItems, ...externalItems];
+  if (allItems.length < 2) throw new Error('נדרשים לפחות 2 מוצרים להשוואה');
+
+  const prompt = `השווי בין המוצרים האלה ותני המלצה ברורה.
+
+${_profileCtx()}
+${goal ? `מטרת המשתמשת: ${goal}` : ''}
+
+מוצרים להשוואה:
+${allItems.map((item, i) => `${i+1}. ${item}`).join('\n')}
+
+תני השוואה חמה ומקצועית:
+- מה ייחודי בכל מוצר
+- מי מנצח לפי המטרה שצוינה (אם צוינה) או לפי סוג העור
+- המלצה סופית ברורה — איזה כדאי לבחור ולמה
+- אם כדאי להשתמש בשניהם יחד — ציני זאת
+
+כתבי בגוף שני, בנימה חמה וישירה. תני המלצה ברורה.`;
+
+  return _aiCall({ messages: [{ role: 'user', content: prompt }] });
+}
+
 // ─── Public API ───────────────────────────────────────────────
 window.AI = {
   enrichProduct:  aiEnrichProduct,
