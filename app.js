@@ -1,3 +1,34 @@
+// ─── Render Scheduler ────────────────────────────────────────
+// Batches multiple render calls within one animation frame.
+// Instead of calling renderProducts() 3x in 1ms, runs it once.
+const _renderQueue = new Set();
+let   _renderFrame = null;
+
+function _scheduleRender(name) {
+  _renderQueue.add(name);
+  if (_renderFrame) return;
+  _renderFrame = requestAnimationFrame(() => {
+    _renderFrame = null;
+    const queue = [..._renderQueue];
+    _renderQueue.clear();
+    // Only render active tab first, others lazily
+    const activeTab = document.querySelector('.view.active')?.id?.replace('view-', '');
+    queue.sort((a, b) => {
+      const priority = { [activeTab]: 0 };
+      return (priority[a] ?? 1) - (priority[b] ?? 1);
+    });
+    queue.forEach(name => {
+      const fns = { routines: renderRoutines, products: renderProducts,
+                    analysis: renderAnalysis, settings: renderSettings };
+      fns[name]?.();
+    });
+  });
+}
+
+// Throttled wrappers — replace direct calls with these where possible
+function scheduleRenderRoutines() { _scheduleRender('routines'); }
+function scheduleRenderProducts() { _scheduleRender('products'); }
+
 /**
  * app.js — Skin Ritual · Application Shell
  * Navigation, onboarding, toast, daily reset.
