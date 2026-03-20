@@ -139,25 +139,24 @@
         <span class="page-title">ניתוח עור</span>
         <span class="page-title-en" style="font-size:1.2rem;opacity:.6">AI Analysis</span>
       </div>
+
+      <!-- Status + upload CTA -->
       <div class="analysis-card">
-        <div class="section-label" style="margin-bottom:.7rem">
+        <div class="section-label" style="margin-bottom:.65rem">
           <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
             <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
           </svg>
-          ניתוח דרמטולוגי
+          ניתוח דרמטולוגי AI
         </div>
-        <div id="analysis-status" class="analysis-status-chip">טוען...</div>
-        <p class="text-soft" style="margin-bottom:.9rem;line-height:1.65">
-          העלי תמונה של פניך לניתוח עור מקצועי מ-AI. הניתוח הראשון ישמש כבסיס למעקב שינויים.
-        </p>
-        <button class="btn btn-primary" onclick="openAnalysisUpload()" style="width:100%;justify-content:center">
-          <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
-            <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
-          </svg>
-          העלי תמונה לניתוח
-        </button>
+        <div id="analysis-status" class="analysis-status-chip" style="margin-bottom:.7rem">טוען...</div>
+        <div id="analysis-hero"></div>
       </div>
-      <div class="section-label" style="margin-bottom:.7rem">
+
+      <!-- History -->
+      <div id="analysis-history"></div>
+
+      <!-- Chat -->
+      <div class="section-label" style="margin-bottom:.65rem;margin-top:.3rem">
         <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
           <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
         </svg>
@@ -417,6 +416,43 @@
     <span class="modal-sub">AI בודק כפילויות, חוסרים והתנגשויות</span>
     <div id="library-consult-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
     <button class="btn btn-primary" onclick="closeModal('modal-library-consult')"
+            style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Analysis Upload -->
+<div id="modal-analysis-upload" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-analysis-upload')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">ניתוח עור AI</p>
+    <span class="modal-sub">העלי תמונה ברורה של פניך באור טבעי</span>
+
+    <div style="text-align:center;margin-bottom:.8rem">
+      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
+        📸 בחרי תמונה
+        <input type="file" id="analysis-upload-file" accept="image/*" style="display:none" onchange="analysisFileSelected(this)">
+      </label>
+    </div>
+
+    <img id="analysis-upload-preview" style="display:none;width:100%;max-height:200px;object-fit:cover;border-radius:var(--r-sm);margin-bottom:.7rem">
+
+    <div id="analysis-upload-result" style="flex:1;overflow-y:auto"></div>
+
+    <div class="modal-actions" style="margin-top:.8rem">
+      <button class="btn btn-primary" onclick="runSkinAnalysis()">נתחי ✦</button>
+      <button class="btn" onclick="closeModal('modal-analysis-upload')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Analysis Detail -->
+<div id="modal-analysis-detail" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-analysis-detail')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">פרטי ניתוח</p>
+    <div id="analysis-detail-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-analysis-detail')"
             style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
   </div>
 </div>
