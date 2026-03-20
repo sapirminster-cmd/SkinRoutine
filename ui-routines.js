@@ -134,8 +134,14 @@ function _routineActions(routineId, hasContent) {
   </div>`;
 
   return `<div class="routine-actions">
-    <button class="btn btn-primary btn-sm" onclick="openAIBuildCycle()">✦ בני מחזור</button>
+    <button class="btn btn-primary btn-sm" onclick="openAIBuildCycle()">✦ ${hasContent ? 'בני מחזור מחדש' : 'בני מחזור'}</button>
     ${hasContent ? `
+      <button class="btn btn-sm" onclick="openCycleExplanation()">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+          <path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180Zm-12-108c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Z"/>
+        </svg>
+        למה בחרת כך?
+      </button>
       <button class="btn btn-sm" onclick="advanceCycleDay()">יום הבא ›</button>
       <button class="btn btn-sm" onclick="resetRoutine('night')">איפוס</button>` : ''}
   </div>`;
@@ -277,5 +283,77 @@ async function openAIBuildCycle() {
     const body = document.getElementById('body-night');
     if (card && !card.classList.contains('open')) { card.classList.add('open'); body.classList.add('open'); }
     showToast('מחזור הטיפוח נבנה ✦', 'success');
+    // Auto-open explanation after short delay
+    setTimeout(() => openCycleExplanation(), 800);
   } catch(err) { showToast(err.message, 'error'); }
+}
+
+/** Open modal with AI explanation of the current cycle */
+async function openCycleExplanation() {
+  const modal   = document.getElementById('modal-cycle-explain');
+  const bodyEl  = document.getElementById('cycle-explain-body');
+  if (!modal || !bodyEl) return;
+
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+
+  modal.classList.remove('hidden');
+  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    AI מנתח את המחזור...
+  </div>`;
+  // Reset chat for this session
+  _cycleExplainHistory = [];
+
+  try {
+    const explanation = await AI.explainCycle();
+    _cycleExplainHistory = [
+      { role: 'user',      content: 'הסבירי לי את המחזור שבנית' },
+      { role: 'assistant', content: explanation },
+    ];
+    _renderCycleChat();
+  } catch(err) {
+    bodyEl.innerHTML = `<div class="conflict-warning">${err.message}</div>`;
+  }
+}
+
+let _cycleExplainHistory = [];
+
+function _renderCycleChat() {
+  const bodyEl = document.getElementById('cycle-explain-body');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = _cycleExplainHistory
+    .filter(m => m.role !== 'user' || _cycleExplainHistory.indexOf(m) > 0)
+    .map(m => { const bubble = m.content.replace(/\n/g, '<br>'); return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}" style="max-width:100%;margin-bottom:.5rem">${bubble}</div>`; })
+    .join('');
+  bodyEl.scrollTop = bodyEl.scrollHeight;
+}
+
+async function sendCycleChat() {
+  const input = document.getElementById('cycle-explain-input');
+  const msg   = input?.value?.trim();
+  if (!msg) return;
+  input.value = '';
+
+  _cycleExplainHistory.push({ role: 'user', content: msg });
+  _renderCycleChat();
+
+  // Loading bubble
+  const bodyEl = document.getElementById('cycle-explain-body');
+  const loader = document.createElement('div');
+  loader.className = 'chat-bubble ai';
+  loader.style.marginBottom = '.5rem';
+  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
+  bodyEl?.appendChild(loader);
+  bodyEl.scrollTop = bodyEl.scrollHeight;
+
+  try {
+    const reply = await AI.chat(_cycleExplainHistory);
+    _cycleExplainHistory.push({ role: 'assistant', content: reply });
+    loader.remove();
+    _renderCycleChat();
+  } catch(err) {
+    loader.remove();
+    _cycleExplainHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
+    _renderCycleChat();
+  }
 }
