@@ -30,12 +30,19 @@ let _scanImages    = []; // { base64, mimeType, preview }
 
 // ─── Render ───────────────────────────────────────────────────
 function renderProducts() {
-  const listEl = document.getElementById('products-list');
+  const listEl    = document.getElementById('products-list');
+  const consultEl = document.getElementById('library-consult-bar');
   if (!listEl) return;
-  const filtered = _filterProducts(DB.getProducts(), _productFilter);
+
+  const allProducts = DB.getProducts();
+  const filtered    = _filterProducts(allProducts, _productFilter);
+
   listEl.innerHTML = filtered.length
     ? filtered.map((p,i) => _productCard(p,i)).join('')
     : _productsEmpty();
+
+  // Show consult bar only when library has 2+ products
+  if (consultEl) consultEl.style.display = allProducts.length >= 2 ? 'flex' : 'none';
 }
 
 function _productCard(p, i) {
@@ -428,6 +435,84 @@ function _saveScannedProduct(data) {
     warnings: data.warnings||[], conflicts: data.conflicts||[],
     note: data.note||'', active: true,
   });
+}
+
+// ─── Library Consultation ────────────────────────────────────
+
+async function openLibraryConsult() {
+  const modal  = document.getElementById('modal-library-consult');
+  const bodyEl = document.getElementById('library-consult-body');
+  if (!modal || !bodyEl) return;
+
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+  if (DB.getProducts().filter(p=>p.active).length < 2) {
+    showToast('הוסיפי לפחות 2 מוצרים לייעוץ', 'error'); return;
+  }
+
+  modal.classList.remove('hidden');
+  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    AI סורק את הספרייה...
+  </div>`;
+
+  try {
+    const data = await AI.consultLibrary();
+    bodyEl.innerHTML = _buildConsultHTML(data);
+  } catch(err) {
+    bodyEl.innerHTML = `<div class="conflict-warning">${esc(err.message)}</div>`;
+  }
+}
+
+function _buildConsultHTML(data) {
+  const section = (icon, title, items, renderItem) => {
+    if (!items?.length) return '';
+    return `<div style="margin-bottom:1rem">
+      <div class="section-label" style="margin-bottom:.5rem">${icon} ${title}</div>
+      ${items.map(renderItem).join('')}
+    </div>`;
+  };
+
+  const chip = text => `<span style="display:inline-block;font-size:.68rem;padding:.15rem .5rem;border-radius:4px;background:var(--driftwood);color:var(--text-soft);margin:.15rem">${esc(text)}</span>`;
+
+  const card = (content, color='rgba(176,152,144,.1)') =>
+    `<div style="background:${color};border-radius:var(--r-sm);padding:.65rem .8rem;margin-bottom:.4rem;font-size:.78rem;line-height:1.55;color:var(--text-dark)">${content}</div>`;
+
+  let html = '';
+
+  // Summary
+  if (data.summary) {
+    html += `<div style="font-size:.82rem;line-height:1.65;color:var(--text-dark);margin-bottom:1rem;padding:.7rem;background:rgba(176,152,144,.12);border-radius:var(--r-sm)">${esc(data.summary)}</div>`;
+  }
+
+  // Duplicates
+  html += section('🔄', 'מוצרים דומים / כפולים', data.duplicates, d =>
+    card(`<strong>${d.products.map(esc).join(' + ')}</strong><br><span style="color:var(--text-soft)">${esc(d.reason)}</span>`, 'rgba(255,200,100,.12)')
+  );
+
+  // Missing
+  html += section('➕', 'חסרים לשגרה מיטבית', data.missing, m =>
+    card(`<strong>${esc(m.category)}</strong> — ${esc(m.reason)}<br><span style="color:var(--latte)">${esc(m.suggestion)}</span>`, 'rgba(100,180,100,.08)')
+  );
+
+  // Unnecessary
+  html += section('🗑', 'שווה לשקול להוציא', data.unnecessary, u =>
+    card(`<strong>${esc(u.product)}</strong> — ${esc(u.reason)}`)
+  );
+
+  // Conflicts
+  html += section('⚠️', 'התנגשויות', data.conflicts, c =>
+    card(`<strong>${c.products.map(esc).join(' + ')}</strong><br>${esc(c.reason)}`, 'rgba(192,57,43,.07)')
+  );
+
+  // Tips
+  if (data.tips?.length) {
+    html += `<div class="section-label" style="margin-bottom:.5rem">💡 טיפים</div>`;
+    html += data.tips.map(t => `<div style="font-size:.78rem;color:var(--text-soft);padding:.3rem 0;line-height:1.5">· ${esc(t)}</div>`).join('');
+  }
+
+  if (!html.trim()) html = '<p style="color:var(--text-soft);text-align:center;padding:1rem">הספרייה נראית טובה! אין הערות מיוחדות.</p>';
+
+  return html;
 }
 
 // ─── Add Step Modal (shared with ui-routines.js) ──────────────
