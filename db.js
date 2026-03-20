@@ -19,9 +19,38 @@ const _dbToday = () => new Date().toISOString().slice(0, 10);
 const _dbGet   = key => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
 const _dbSet   = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
+
+// ─── Read-through cache ───────────────────────────────────────
+// Caches localStorage reads within a single JS tick.
+// Cleared automatically after each microtask queue flush.
+const _dbCache = {};
+let   _dbCacheTimer = null;
+
+function _dbClearCache() {
+  Object.keys(_dbCache).forEach(k => delete _dbCache[k]);
+}
+
+// Wrapped _dbGet with cache
+const _dbGetCached = key => {
+  if (key in _dbCache) return _dbCache[key];
+  const val = _dbGet(key);
+  _dbCache[key] = val;
+  // Schedule cache clear after current synchronous block
+  if (!_dbCacheTimer) {
+    _dbCacheTimer = setTimeout(() => { _dbClearCache(); _dbCacheTimer = null; }, 0);
+  }
+  return val;
+};
+
+// Wrapped _dbSet that also busts cache for that key
+const _dbSetCached = (key, val) => {
+  delete _dbCache[key];
+  _dbSet(key, val);
+};
+
 // ─── Products ─────────────────────────────────────────────────
-const _dbGetProducts  = () => _dbGet(DB_KEYS.PRODUCTS) ?? [];
-const _dbSaveProducts = ps => _dbSet(DB_KEYS.PRODUCTS, ps);
+const _dbGetProducts  = () => _dbGetCached(DB_KEYS.PRODUCTS) ?? [];
+const _dbSaveProducts = ps => _dbSetCached(DB_KEYS.PRODUCTS, ps);
 
 const _dbAddProduct = data => {
   const ps = _dbGetProducts();
@@ -53,8 +82,8 @@ const _dbDefaultRoutines = () => [
   { id:'night',   name:'שגרת ערב',  steps:[], cycle:[], currentDayIndex:0, lastReset:_dbToday() },
 ];
 
-const _dbGetRoutines  = () => _dbGet(DB_KEYS.ROUTINES) ?? _dbDefaultRoutines();
-const _dbSaveRoutines = rs => _dbSet(DB_KEYS.ROUTINES, rs);
+const _dbGetRoutines  = () => _dbGetCached(DB_KEYS.ROUTINES) ?? _dbDefaultRoutines();
+const _dbSaveRoutines = rs => _dbSetCached(DB_KEYS.ROUTINES, rs);
 
 const _dbUpdateRoutine = (id, updates) =>
   _dbSaveRoutines(_dbGetRoutines().map(r => r.id === id ? { ...r, ...updates } : r));
@@ -124,7 +153,7 @@ const _dbUpdateAnalysis = (id, updates) =>
 const _dbGetBaseline = () => _dbGetAnalysis().find(a => a.isBaseline) ?? null;
 
 // ─── Settings ─────────────────────────────────────────────────
-const _dbGetSettings  = ()       => _dbGet(DB_KEYS.SETTINGS) ?? {};
+const _dbGetSettings  = ()       => _dbGetCached(DB_KEYS.SETTINGS) ?? {};
 const _dbSaveSettings = updates  => _dbSet(DB_KEYS.SETTINGS, { ..._dbGetSettings(), ...updates });
 
 // ─── Backup ───────────────────────────────────────────────────
