@@ -191,4 +191,6 @@ window.AI = {
   buildNightCycle:aiBuildNightCycle,
   analyzeSkin:    aiAnalyzeSkin,
   chat:           aiChat,
+  explainCycle:   aiExplainCycle,
+  consultLibrary: aiConsultLibrary,
 };
