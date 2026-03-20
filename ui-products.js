@@ -248,18 +248,64 @@ function scanFileSelected(input) {
   const files = Array.from(input.files || []);
   if (!files.length) return;
   document.getElementById('scan-result').innerHTML = '';
+  files.forEach(file => _compressAndAdd(file));
+  input.value = '';
+}
 
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const [header, base64] = e.target.result.split(',');
-      const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
-      _scanImages.push({ base64, mimeType, preview: e.target.result });
+/**
+ * Compress image to under 4MB before adding to scan queue.
+ * Uses Canvas to resize large images while preserving aspect ratio.
+ * @param {File} file
+ */
+function _compressAndAdd(file) {
+  const MAX_BYTES = 3.5 * 1024 * 1024; // 3.5MB — safe margin under API 5MB limit
+  const MAX_DIM   = 1600;               // max width or height in pixels
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const original = e.target.result;
+
+    // If already small enough, use as-is
+    const [header, base64] = original.split(',');
+    const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+    const byteLen  = Math.ceil(base64.length * 3 / 4);
+
+    if (byteLen <= MAX_BYTES) {
+      _scanImages.push({ base64, mimeType: 'image/jpeg', preview: original });
+      _renderScanThumbs();
+      return;
+    }
+
+    // Compress via canvas
+    const img = new Image();
+    img.onload = () => {
+      const canvas  = document.createElement('canvas');
+      let { width, height } = img;
+
+      // Scale down if needed
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width  = Math.round(width  * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width  = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+      // Try quality 0.85, then 0.7 if still too large
+      let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      if (dataUrl.length * 3 / 4 > MAX_BYTES) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      }
+
+      const [h2, b2] = dataUrl.split(',');
+      _scanImages.push({ base64: b2, mimeType: 'image/jpeg', preview: dataUrl });
       _renderScanThumbs();
     };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
+    img.src = original;
+  };
+  reader.readAsDataURL(file);
 }
 
 function _renderScanThumbs() {
