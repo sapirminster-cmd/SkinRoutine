@@ -154,19 +154,40 @@ ${list}
 }
 
 // ─── 5. Skin analysis ─────────────────────────────────────────
-async function aiAnalyzeSkin(base64, mimeType) {
+async function aiAnalyzeSkin(images) {
+  // images: [{ base64, mimeType }] — support 1 or more angles
   const prods = DB.getProducts().filter(p => p.active).map(p => p.name).join(', ');
-  const prompt = `ניתוח דרמטולוגי של עור הפנים.
+  const multi = images.length > 1;
+
+  const prompt = `אני רוצה לתת לך מבט חם ומקצועי על העור שלך${multi ? ' — העלית כמה תמונות מזוויות שונות, מעולה' : ''}.
+
 ${_profileCtx()}
-${prods ? `מוצרים בשימוש: ${prods}` : ''}
-ענה ב-JSON בלבד:
-{"overallScore":75,"skinType":"תיאור","conditions":[{"name":"שם","severity":"mild|moderate|significant","notes":"תיאור"}],"positives":["חיובי1"],"concerns":["דאגה1"],"recommendations":[{"priority":"high|medium|low","action":"המלצה"}],"ingredients_to_seek":["רכיב1"],"ingredients_to_avoid":["להימנע1"],"summary":"סיכום 2-3 משפטים"}`;
+${prods ? `מוצרים שאת משתמשת בהם: ${prods}` : ''}
+
+אני אסתכל על העור שלך בעיניים מקצועיות אבל חמות, ואתן לך תמונה כנה ואופטימיסטית של מה שאני רואה.
+
+ענה ב-JSON בלבד, בעברית, בנימה נעימה ומעודדת:
+{
+  "overallScore": 75,
+  "skinType": "תיאור עדין של סוג העור",
+  "conditions": [{"name": "שם המצב", "severity": "mild|moderate|significant", "notes": "הסבר חם ובגובה העיניים"}],
+  "positives": ["דבר מחמיא ואמיתי על העור"],
+  "concerns": ["דאגה קטנה, מנוסחת בעדינות"],
+  "recommendations": [{"priority": "high|medium|low", "action": "המלצה ספציפית ומעשית, מנוסחת כהצעה לא כציווי"}],
+  "ingredients_to_seek": ["רכיב שיועיל"],
+  "ingredients_to_avoid": ["רכיב להימנע ממנו"],
+  "summary": "סיכום חם ב-2-3 משפטים שמדגיש את הטוב ומציין בעדינות מה אפשר לשפר"
+}
+
+חשוב: הציון הוא לא ציון מבחן — הוא מדד להתקדמות. כל עור יפה בדרכו.`;
+
+  const imageBlocks = images.map(img => ({
+    type: 'image',
+    source: { type: 'base64', media_type: img.mimeType, data: img.base64 },
+  }));
 
   const text = await _aiCall({
-    messages:[{ role:'user', content:[
-      { type:'image', source:{ type:'base64', media_type:mimeType, data:base64 } },
-      { type:'text',  text:prompt },
-    ]}],
+    messages:[{ role:'user', content:[...imageBlocks, { type:'text', text:prompt }] }],
   });
   return _parseJSON(text);
 }
@@ -252,7 +273,7 @@ window.AI = {
   scanProducts:   aiScanProducts,
   buildMorning:   aiBuildMorning,
   buildNightCycle:aiBuildNightCycle,
-  analyzeSkin:    aiAnalyzeSkin,
+  analyzeSkin:    aiAnalyzeSkin,  // now accepts images array
   chat:           aiChat,
   explainCycle:   aiExplainCycle,
   consultLibrary: aiConsultLibrary,
