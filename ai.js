@@ -183,6 +183,69 @@ async function aiChat(messages) {
   return _aiCall({ system, messages });
 }
 
+// ─── 7. Explain cycle ─────────────────────────────────────────
+async function aiExplainCycle() {
+  const night    = DB.getRoutines().find(r => r.id === 'night');
+  const products = DB.getProducts();
+  if (!night?.cycle?.length) throw new Error('אין מחזור לנתח');
+
+  const cycleDesc = night.cycle.map((day, i) => {
+    const names = day.steps
+      .map(s => products.find(p => p.id === s.productId))
+      .filter(Boolean)
+      .map(p => `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`)
+      .join(', ');
+    return `לילה ${i+1} — ${day.label}: ${names || 'ריק'}`;
+  }).join('\n');
+
+  const allProds = products.filter(p => p.active)
+    .map(p => `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`).join(', ');
+
+  const prompt = `הסבירי את בחירות המחזור בעברית, בסגנון ידידותי ומקצועי.
+
+המחזור:
+${cycleDesc}
+
+כל המוצרים הזמינים:
+${allProds}
+
+${_profileCtx()}
+
+ענה עם:
+1. הלוגיקה הכללית של המחזור
+2. לגבי כל לילה — למה הסדר והמוצרים האלה
+3. אם יש מוצרים שלא נכללו — למה
+4. המלצה לשיפור אם יש
+
+כתבי בגוף שני, פסקאות קצרות.`;
+
+  return _aiCall({ messages: [{ role: 'user', content: prompt }] });
+}
+
+// ─── 8. Consult library ────────────────────────────────────────
+async function aiConsultLibrary() {
+  const products = DB.getProducts().filter(p => p.active);
+  if (products.length < 2) throw new Error('הוסיפי לפחות 2 מוצרים לייעוץ');
+
+  const list = products.map(p =>
+    `- ${p.brand ? p.brand+' ' : ''}${p.name} | ${p.category} | ${(p.timeOfUse||[]).join('+')}${p.ingredients?.length ? ' | '+p.ingredients.slice(0,3).join(', ') : ''}`
+  ).join('\n');
+
+  const prompt = `נתחי את ספריית מוצרי הטיפוח ותני ייעוץ מקצועי.
+${_profileCtx()}
+
+הספרייה:
+${list}
+
+ענה ב-JSON בלבד, ללא טקסט נוסף:
+{"summary":"סיכום כללי 2 משפטים","duplicates":[{"products":["מוצר1","מוצר2"],"reason":"הסבר"}],"missing":[{"category":"קטגוריה","reason":"למה חשוב","suggestion":"המלצה"}],"unnecessary":[{"product":"שם","reason":"הסבר"}],"conflicts":[{"products":["מוצר1","מוצר2"],"reason":"הסבר"}],"tips":["טיפ1","טיפ2"]}
+
+אם אין בעיה בקטגוריה — החזר מערך ריק [].`;
+
+  const text = await _aiCall({ _maxTok: 1500, messages: [{ role: 'user', content: prompt }] });
+  return _parseJSON(text);
+}
+
 // ─── Public API ───────────────────────────────────────────────
 window.AI = {
   enrichProduct:  aiEnrichProduct,
