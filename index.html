@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F5EDE0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Skin Ritual">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <title>Skin Ritual · שגרת טיפוח</title>
+</head>
+<body>
+
+<!-- ═══ ONBOARDING ═══════════════════════════════════════════ -->
+<div id="onboarding-overlay">
+  <div class="ob-inner">
+    <div class="ob-logo">Skin Ritual</div>
+    <div class="ob-logo-sub">שגרת טיפוח · AI</div>
+    <div class="ob-dots">
+      <div class="ob-dot active"></div>
+      <div class="ob-dot"></div>
+      <div class="ob-dot"></div>
+    </div>
+
+    <!-- Step 1: Skin Type -->
+    <div class="ob-step active" id="ob-step-1">
+      <div class="ob-step-title">מה סוג העור שלך?</div>
+      <p class="ob-step-sub">כדי שנוכל להתאים את השגרה בצורה מושלמת</p>
+      <div class="ob-skin-grid" id="ob-skin-grid"></div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obNext()">הבא ←</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Concerns -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-step-title">קצת עלייך</div>
+      <p class="ob-step-sub">כדי שהמלצות ה-AI יהיו מדויקות</p>
+      <div class="modal-field">
+        <label class="modal-label">גיל (אופציונלי)</label>
+        <input class="modal-input" id="ob-age" type="number" min="13" max="99" placeholder="30">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">דאגות עיקריות</label>
+        <div class="ob-concerns-grid" id="ob-concerns-grid"></div>
+      </div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obNext()">הבא ←</button>
+        <button class="btn" id="ob-back-btn" onclick="obBack()" style="visibility:hidden">← חזרה</button>
+      </div>
+    </div>
+
+    <!-- Step 3: API Key -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-step-title">הכל מוכן ✦</div>
+      <p class="ob-step-sub">הוסיפי מפתח Anthropic API להפעלת תכונות ה-AI.<br>ניתן לדלג ולהוסיף מאוחר יותר בהגדרות.</p>
+      <div class="modal-field">
+        <label class="modal-label">Anthropic API Key</label>
+        <input class="modal-input" id="ob-api-key" type="password" placeholder="sk-ant-...">
+      </div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obComplete()">התחילי ✦</button>
+        <button class="btn" onclick="obBack()">← חזרה</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ APP ══════════════════════════════════════════════════ -->
+<div id="app">
+  <div class="main-scroll">
+
+    <!-- TAB: Routines -->
+    <div class="view active" id="view-routines">
+      <div class="page-header">
+        <span class="page-title">שגרת טיפוח</span>
+        <span class="page-title-en" style="font-size:1.2rem;opacity:.6">Skin Ritual</span>
+      </div>
+      <div id="morning-routine-container"></div>
+      <div id="night-routine-container"></div>
+    </div>
+
+    <!-- TAB: Products -->
+    <div class="view" id="view-products">
+      <div class="page-header">
+        <span class="page-title">ספריית מוצרים</span>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="openScanModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+            </svg>
+            סריקה
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>
+            </svg>
+            הוספה
+          </button>
+        </div>
+      </div>
+      <div class="filter-bar" id="product-filter-bar">
+        <button class="filter-chip active" onclick="filterProducts('all',this)">הכל</button>
+        <button class="filter-chip" onclick="filterProducts('active',this)">פעיל</button>
+        <button class="filter-chip" onclick="filterProducts('cleanser',this)">קלנזר</button>
+        <button class="filter-chip" onclick="filterProducts('toner',this)">טונר</button>
+        <button class="filter-chip" onclick="filterProducts('serum',this)">סרום</button>
+        <button class="filter-chip" onclick="filterProducts('moisturizer',this)">לחות</button>
+        <button class="filter-chip" onclick="filterProducts('spf',this)">הגנה</button>
+        <button class="filter-chip" onclick="filterProducts('retinoid',this)">רטינול</button>
+        <button class="filter-chip" onclick="filterProducts('exfoliant',this)">אקספוליאנט</button>
+        <button class="filter-chip" onclick="filterProducts('treatment',this)">טיפול</button>
+      </div>
+      <div id="products-list"></div>
+    </div>
+
+    <!-- TAB: Analysis -->
+    <div class="view" id="view-analysis">
+      <div class="page-header">
+        <span class="page-title">ניתוח עור</span>
+        <span class="page-title-en" style="font-size:1.2rem;opacity:.6">AI Analysis</span>
+      </div>
+      <div class="analysis-card">
+        <div class="section-label" style="margin-bottom:.7rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          ניתוח דרמטולוגי
+        </div>
+        <div id="analysis-status" class="analysis-status-chip">טוען...</div>
+        <p class="text-soft" style="margin-bottom:.9rem;line-height:1.65">
+          העלי תמונה של פניך לניתוח עור מקצועי מ-AI. הניתוח הראשון ישמש כבסיס למעקב שינויים.
+        </p>
+        <button class="btn btn-primary" onclick="openAnalysisUpload()" style="width:100%;justify-content:center">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
+            <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+          </svg>
+          העלי תמונה לניתוח
+        </button>
+      </div>
+      <div class="section-label" style="margin-bottom:.7rem">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+          <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+        </svg>
+        יועצת טיפוח AI
+      </div>
+      <div class="chat-container">
+        <div class="chat-messages" id="analysis-chat-messages">
+          <div class="chat-bubble ai">שלום! אני כאן לענות על כל שאלה לגבי טיפוח עור, מוצרים ורכיבים ✦</div>
+        </div>
+        <div class="chat-bar">
+          <textarea class="chat-input" id="analysis-chat-input" placeholder="שאלי אותי כל דבר..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+          <button class="chat-send" onclick="sendChat()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="16" height="16">
+              <path d="M231.4,44.34a8,8,0,0,0-10.74-3.06L16.4,156.66A8,8,0,0,0,17.89,172l55.64,15.9L224,52.87A8,8,0,0,0,231.4,44.34Zm-180,137.44,63.65-63.64a8,8,0,0,1,11.32,11.31L62.72,193.11ZM192,224a8,8,0,0,1-15.65,2.19L161.5,168.34Z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Settings -->
+    <div class="view" id="view-settings">
+      <div class="page-header"><span class="page-title">הגדרות</span></div>
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M243.07,92.76,161.14,10.86a16,16,0,0,0-22.63,0L12.69,136.66A16,16,0,0,0,8,147.9V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152a8,8,0,0,0-16,0v56H24V147.9L149.86,22,225,97.1,176,146.1V128a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8h40a8,8,0,0,0,0-16H191.31l51-51A16,16,0,0,0,243.07,92.76Z"/>
+          </svg>
+          Anthropic API
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">API Key</label>
+          <input class="settings-input" id="settings-api-key" type="password" placeholder="sk-ant-...">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          פרופיל עור
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">סוג עור</label>
+          <div class="skin-type-grid">
+            <button class="skin-type-btn" data-type="normal"      onclick="selectSkinTypeBtn(this)">✨ נורמלי</button>
+            <button class="skin-type-btn" data-type="dry"         onclick="selectSkinTypeBtn(this)">🌵 יבש</button>
+            <button class="skin-type-btn" data-type="oily"        onclick="selectSkinTypeBtn(this)">💧 שמן</button>
+            <button class="skin-type-btn" data-type="combination" onclick="selectSkinTypeBtn(this)">☯ מעורב</button>
+            <button class="skin-type-btn" data-type="sensitive"   onclick="selectSkinTypeBtn(this)">🌸 רגיש</button>
+          </div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">גיל</label>
+          <input class="settings-input" id="settings-age" type="number" min="13" max="99" placeholder="30" style="max-width:120px">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          הוראות מותאמות ל-AI
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">הקשר נוסף (אופציונלי)</label>
+          <textarea class="settings-input" id="settings-custom-prompt" rows="3"
+            placeholder="לדוג׳: יש לי רגישות לריח, מעדיפה מוצרים טבעיים..."></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveSettings()" style="width:100%;justify-content:center;margin-bottom:1rem">
+        שמירת הגדרות
+      </button>
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">גיבוי נתונים</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn" onclick="exportData()">ייצוא</button>
+          <button class="btn" onclick="importData()">ייבוא</button>
+          <button class="btn btn-rose" onclick="clearAllData()" style="margin-right:auto">מחיקת כל הנתונים</button>
+        </div>
+      </div>
+
+      <p class="text-soft" style="text-align:center;margin-top:1.5rem;font-size:.65rem">Skin Ritual v2.0</p>
+    </div>
+
+  </div><!-- /main-scroll -->
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-routines" onclick="showTab('routines')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-52-56a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h44A8,8,0,0,1,148,160Zm8-32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h52A8,8,0,0,1,156,128Z"/>
+      </svg>
+      <span class="nav-label">שגרות</span>
+    </button>
+    <button class="nav-btn" id="nav-products" onclick="showTab('products')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+      </svg>
+      <span class="nav-label">מוצרים</span>
+    </button>
+    <button class="nav-btn" id="nav-analysis" onclick="showTab('analysis')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+      </svg>
+      <span class="nav-label">ניתוח</span>
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="showTab('settings')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Z"/>
+      </svg>
+      <span class="nav-label">הגדרות</span>
+    </button>
+  </nav>
+</div><!-- /app -->
+
+
+<!-- ═══ MODALS ════════════════════════════════════════════════ -->
+
+<!-- Modal: Add/Edit Product -->
+<div id="modal-product" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-product')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="mp-title">מוצר חדש</p>
+    <span class="modal-sub" id="mp-sub">הוסיפי פרטים — AI יסווג ויעשיר אוטומטית</span>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">מותג</label>
+        <input class="modal-input" id="mp-brand" placeholder="Glow Recipe">
+      </div>
+      <div class="modal-field" style="flex:1.8">
+        <label class="modal-label">שם מוצר *</label>
+        <input class="modal-input" id="mp-name" placeholder="Plum Plump Serum">
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">קטגוריה</label>
+        <select class="modal-select" id="mp-category">
+          <option value="">AI יסווג ←</option>
+          <option value="cleanser">קלנזר</option>
+          <option value="toner">טונר</option>
+          <option value="exfoliant">אקספוליאנט</option>
+          <option value="serum">סרום</option>
+          <option value="eye_care">קרם עיניים</option>
+          <option value="moisturizer">מוסטורייזר</option>
+          <option value="spf">קרם הגנה</option>
+          <option value="retinoid">רטינואיד</option>
+          <option value="treatment">טיפול</option>
+          <option value="mask">מסכה</option>
+          <option value="oil">שמן</option>
+          <option value="other">אחר</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">זמן שימוש</label>
+        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.3rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-time-morning" checked> בוקר
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-time-night" checked> ערב
+          </label>
+        </div>
+      </div>
+    </div>
+    <div id="mp-ai-result"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveProductModal()">שמירה</button>
+      <button class="btn" onclick="closeModal('modal-product')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Scan Products -->
+<div id="modal-scan" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-scan')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title">סריקת מוצרים</p>
+    <span class="modal-sub">העלי תמונות — AI יזהה את כל המוצרים</span>
+    <div style="text-align:center;margin-bottom:.8rem">
+      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
+          <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+        </svg>
+        + הוסיפי תמונות
+        <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanFileSelected(this)">
+      </label>
+    </div>
+    <div id="scan-previews" style="display:none;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;max-height:160px;overflow-y:auto"></div>
+    <div id="scan-result" style="max-height:45dvh;overflow-y:auto"></div>
+    <div class="modal-actions" style="margin-top:.8rem">
+      <button class="btn btn-primary" onclick="runProductScan()">זהי מוצרים ✦</button>
+      <button class="btn" onclick="closeModal('modal-scan')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Step to Routine -->
+<div id="modal-add-step" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-add-step')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="mas-title">הוספת שלב</p>
+    <span class="modal-sub">בחרי מוצר מהספרייה</span>
+    <div class="filter-bar" id="mas-filter-bar">
+      <button class="filter-chip active" onclick="masFilter('all',this)">הכל</button>
+      <button class="filter-chip" onclick="masFilter('cleanser',this)">קלנזר</button>
+      <button class="filter-chip" onclick="masFilter('toner',this)">טונר</button>
+      <button class="filter-chip" onclick="masFilter('serum',this)">סרום</button>
+      <button class="filter-chip" onclick="masFilter('moisturizer',this)">לחות</button>
+      <button class="filter-chip" onclick="masFilter('spf',this)">הגנה</button>
+      <button class="filter-chip" onclick="masFilter('retinoid',this)">רטינול</button>
+    </div>
+    <div id="mas-product-list" style="max-height:55dvh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<!-- Scripts — ORDER MATTERS -->
+<script src="db.js"></script>
+<script src="ai.js"></script>
+<script src="ui-products.js"></script>
+<script src="ui-routines.js"></script>
+<script src="ui-analysis.js"></script>
+<script src="ui-settings.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
