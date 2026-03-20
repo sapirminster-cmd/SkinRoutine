@@ -277,4 +277,5 @@ window.AI = {
   chat:           aiChat,
   explainCycle:   aiExplainCycle,
   consultLibrary: aiConsultLibrary,
+  compareProducts: aiCompareProducts,
 };
