@@ -4,7 +4,7 @@
 
 // ─── State ────────────────────────────────────────────────────
 let _chatHistory   = [];
-let _analysisImage = null; // { base64, mimeType, preview }
+let _analysisImages = []; // [{ base64, mimeType, preview }]
 
 // ─── Render ───────────────────────────────────────────────────
 function renderAnalysis() {
@@ -99,33 +99,57 @@ function _deltaChip(delta) {
 function openAnalysisUpload() {
   const modal = document.getElementById('modal-analysis-upload');
   if (!modal) return;
-  _analysisImage = null;
-  const prev = document.getElementById('analysis-upload-preview');
-  if (prev) { prev.style.display = 'none'; prev.src = ''; }
+  _analysisImages = [];
+  _renderAnalysisThumbs();
   const res = document.getElementById('analysis-upload-result');
-  if (res)  { res.innerHTML = ''; delete res.dataset.analysisJson; }
+  if (res) { res.innerHTML = ''; delete res.dataset.analysisJson; }
   const inp = document.getElementById('analysis-upload-file');
-  if (inp)  inp.value = '';
+  if (inp) inp.value = '';
   modal.classList.remove('hidden');
 }
 
-function analysisFileSelected(input) {
-  const file = input.files?.[0];
-  if (!file) return;
+function _renderAnalysisThumbs() {
+  const el = document.getElementById('analysis-upload-thumbs');
+  if (!el) return;
+  if (!_analysisImages.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = _analysisImages.map((img, i) => `
+    <div style="position:relative;flex-shrink:0">
+      <img src="${img.preview}" style="width:72px;height:72px;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--border)">
+      <button onclick="removeAnalysisImage(${i})"
+        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+               background:var(--text-dark);color:var(--ivory);font-size:10px;
+               display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+function removeAnalysisImage(i) {
+  _analysisImages.splice(i, 1);
+  _renderAnalysisThumbs();
   const res = document.getElementById('analysis-upload-result');
   if (res) { res.innerHTML = ''; delete res.dataset.analysisJson; }
+}
 
+function analysisFileSelected(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  const res = document.getElementById('analysis-upload-result');
+  if (res) { res.innerHTML = ''; delete res.dataset.analysisJson; }
+  files.forEach(file => _compressAndAddAnalysis(file));
+  input.value = '';
+}
+
+function _compressAndAddAnalysis(file) {
+  const MAX = 3.5 * 1024 * 1024;
   const reader = new FileReader();
   reader.onload = e => {
-    const MAX = 3.5 * 1024 * 1024;
     const [header, base64] = e.target.result.split(',');
     const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
     const bytes    = Math.ceil(base64.length * 3 / 4);
 
     const store = (b64, mime, url) => {
-      _analysisImage = { base64: b64, mimeType: mime, preview: url };
-      const prev = document.getElementById('analysis-upload-preview');
-      if (prev) { prev.src = url; prev.style.display = 'block'; }
+      _analysisImages.push({ base64: b64, mimeType: mime, preview: url });
+      _renderAnalysisThumbs();
     };
 
     if (bytes <= MAX) { store(base64, mimeType, e.target.result); return; }
@@ -153,16 +177,17 @@ function analysisFileSelected(input) {
 
 async function runSkinAnalysis() {
   const resultEl = document.getElementById('analysis-upload-result');
-  if (!_analysisImage)            { showToast('נא לבחור תמונה', 'error'); return; }
-  if (!DB.getSettings().apiKey)   { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+  if (!_analysisImages.length)  { showToast('נא לבחור תמונה', 'error'); return; }
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
 
+  const count = _analysisImages.length;
   resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
     <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    AI מנתח את עור הפנים...
+    מנתחת ${count > 1 ? count + ' תמונות' : 'תמונה'}...
   </div>`;
 
   try {
-    const analysis = await AI.analyzeSkin(_analysisImage.base64, _analysisImage.mimeType);
+    const analysis = await AI.analyzeSkin(_analysisImages);
     resultEl.innerHTML = _analysisHTML(analysis, true);
     resultEl.dataset.analysisJson = JSON.stringify(analysis);
   } catch(err) {
@@ -176,7 +201,7 @@ function saveAnalysis() {
 
   const analysis = JSON.parse(resultEl.dataset.analysisJson);
   const baseline = DB.getBaselineAnalysis();
-  const thumb    = _thumb(_analysisImage.preview);
+  const thumb    = _analysisImages.length ? _thumb(_analysisImages[0].preview) : null;
 
   let delta = null;
   if (baseline?.analysis?.overallScore !== undefined && analysis.overallScore !== undefined) {
