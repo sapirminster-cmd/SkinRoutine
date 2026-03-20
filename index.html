@@ -90,6 +90,12 @@
       <div class="page-header">
         <span class="page-title">ספריית מוצרים</span>
         <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="openCompareModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M230.14,58.87A8,8,0,0,0,224,56H175.4L151.58,18.35a8,8,0,0,0-13.16,0L114.6,56H32A8,8,0,0,0,24,67.2L56,165.07V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V165.07l32-97.87A8,8,0,0,0,230.14,58.87ZM183.8,72l-9.33,28.49A23.85,23.85,0,0,1,168,99a24,24,0,0,1,0-48,23.85,23.85,0,0,1,6.47.9ZM128,32.65,142.6,56H113.4ZM72,99a23.85,23.85,0,0,1-6.47-.51L56.2,72H81.53A23.85,23.85,0,0,1,88,99.9,24,24,0,0,1,72,99Zm112,101H72V176H184Zm5.49-40H178.78a40,40,0,0,0-101.56,0H66.51l-23.82-72.69A40,40,0,0,0,104,123a39.54,39.54,0,0,0,24-8,39.54,39.54,0,0,0,24,8,40,40,0,0,0,61.31-35.69Z"/>
+            </svg>
+            השוואה
+          </button>
           <button class="btn btn-sm" onclick="openScanModal()">
             <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
               <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
@@ -456,6 +462,64 @@
     <div id="analysis-detail-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
     <button class="btn btn-primary" onclick="closeModal('modal-analysis-detail')"
             style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Product Comparison -->
+<div id="modal-compare" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-compare')">
+  <div class="modal-sheet" style="max-height:90dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">השוואת מוצרים ✦</p>
+    <span class="modal-sub">בחרי מוצרים מהספרייה או הקלידי שמות מוצרים חיצוניים</span>
+
+    <!-- Product list from library -->
+    <div class="section-label" style="margin-bottom:.4rem">מהספרייה שלי</div>
+    <div id="compare-product-list"
+         style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:.3rem;margin-bottom:.7rem"></div>
+
+    <!-- External products -->
+    <div class="modal-field">
+      <label class="modal-label">מוצרים נוספים שלא בספרייה (שורה אחת לכל מוצר)</label>
+      <textarea class="modal-input" id="compare-free-text" rows="2"
+                placeholder="The Ordinary Niacinamide&#10;CeraVe Moisturizing Cream"
+                oninput="if(typeof _updateCompareCount==='function')_updateCompareCount()"></textarea>
+    </div>
+
+    <!-- Goal -->
+    <div class="modal-field">
+      <label class="modal-label">מה המטרה? (אופציונלי)</label>
+      <input class="modal-input" id="compare-goal" placeholder="לחות יומיומית, לפני קרם לחות, לעור שמן...">
+    </div>
+
+    <!-- Count indicator -->
+    <div id="compare-count" style="font-size:.72rem;color:var(--text-soft);text-align:center;margin-bottom:.6rem">
+      בחרי לפחות 2 מוצרים
+    </div>
+
+    <!-- Run comparison -->
+    <button class="btn btn-primary" onclick="runProductComparison()" style="width:100%;justify-content:center;margin-bottom:.7rem">
+      השווי ✦
+    </button>
+
+    <!-- Chat results -->
+    <div id="compare-chat"
+         style="flex:1;overflow-y:auto;min-height:80px;padding:.2rem 0"></div>
+
+    <!-- Follow-up input (shown after first response) -->
+    <div id="compare-followup-bar" class="chat-bar" style="display:none;margin-top:.5rem">
+      <input class="chat-input" id="compare-followup-input"
+             placeholder="שאלי שאלת המשך..."
+             style="border-radius:20px"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();sendCompareFollowUp()}">
+      <button class="chat-send" onclick="sendCompareFollowUp()">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="16" height="16">
+          <path d="M231.4,44.34a8,8,0,0,0-10.74-3.06L16.4,156.66A8,8,0,0,0,17.89,172l55.64,15.9L224,52.87A8,8,0,0,0,231.4,44.34Zm-180,137.44,63.65-63.64a8,8,0,0,1,11.32,11.31L62.72,193.11ZM192,224a8,8,0,0,1-15.65,2.19L161.5,168.34Z"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="btn" onclick="closeModal('modal-compare')" style="margin-top:.6rem;width:100%;justify-content:center">סגירה</button>
   </div>
 </div>
 
