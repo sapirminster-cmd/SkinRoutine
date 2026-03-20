@@ -63,10 +63,20 @@ function _morningSteps(routine, products) {
 function _nightCycle(routine, products) {
   const activeIdx = routine.currentDayIndex ?? 0;
   const tabs = routine.cycle.map((day, i) =>
-    `<button class="cycle-btn${i===activeIdx?' active':''}"
-             onclick="selectCycleTab('${routine.id}',${i},this)">
-       ${day.icon||''} ${day.label}
-     </button>`
+    `<div style="display:inline-flex;align-items:center;gap:0;position:relative">
+       <button class="cycle-btn${i===activeIdx?' active':''}"
+               onclick="selectCycleTab('${routine.id}',${i},this)"
+               style="padding-left:1.6rem">
+         ${day.icon||''} ${day.label}
+       </button>
+       <button onclick="event.stopPropagation();deleteCycleDay('${routine.id}',${i})"
+               title="מחק יום זה"
+               style="position:absolute;left:2px;top:50%;transform:translateY(-50%);
+                      width:16px;height:16px;border-radius:50%;background:transparent;
+                      border:none;cursor:pointer;font-size:9px;color:var(--text-soft);
+                      display:flex;align-items:center;justify-content:center;
+                      line-height:1;opacity:.6">✕</button>
+     </div>`
   ).join('');
 
   const activeDay = routine.cycle[activeIdx];
@@ -130,7 +140,14 @@ function _routineActions(routineId, hasContent) {
   if (isMorning) return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildMorning()">✦ בני עם AI</button>
     ${addBtn}
-    ${hasContent ? `<button class="btn btn-sm" onclick="resetRoutine('morning')">איפוס</button>` : ''}
+    ${hasContent ? `
+      <button class="btn btn-sm" onclick="resetRoutine('morning')">איפוס</button>
+      <button class="btn btn-sm btn-rose" onclick="clearRoutine('morning')" title="מחק את כל השלבים">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+          <path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192Z"/>
+        </svg>
+        נקי רוטינה
+      </button>` : ''}
   </div>`;
 
   return `<div class="routine-actions">
@@ -143,7 +160,13 @@ function _routineActions(routineId, hasContent) {
         למה בחרת כך?
       </button>
       <button class="btn btn-sm" onclick="advanceCycleDay()">יום הבא ›</button>
-      <button class="btn btn-sm" onclick="resetRoutine('night')">איפוס</button>` : ''}
+      <button class="btn btn-sm" onclick="resetRoutine('night')">איפוס</button>
+      <button class="btn btn-sm btn-rose" onclick="clearRoutine('night')" title="מחק את כל המחזור">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+          <path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192Z"/>
+        </svg>
+        מחק מחזור
+      </button>` : ''}
   </div>`;
 }
 
@@ -242,6 +265,39 @@ function resetRoutine(routineId) {
   }
   renderRoutines();
   showToast('השגרה אופסה');
+}
+
+/** Clear all steps from morning routine, or entire cycle from night */
+function clearRoutine(routineId) {
+  const label = routineId === 'morning' ? 'שגרת הבוקר' : 'מחזור הטיפוח הלילי';
+  if (!confirm(`למחוק את כל ${label}?`)) return;
+
+  if (routineId === 'morning') {
+    DB.updateRoutine('morning', { steps: [] });
+    DB.resetRoutineDone('morning');
+  } else {
+    const routine = DB.getRoutines().find(r => r.id === 'night');
+    if (routine?.cycle) routine.cycle.forEach((_, i) => DB.resetRoutineDone('night', i));
+    DB.updateRoutine('night', { cycle: [], currentDayIndex: 0 });
+  }
+  renderRoutines();
+  showToast('הרוטינה נמחקה');
+}
+
+/** Delete a single cycle day by index */
+function deleteCycleDay(routineId, dayIndex) {
+  const routine = DB.getRoutines().find(r => r.id === routineId);
+  if (!routine?.cycle?.length) return;
+
+  const day = routine.cycle[dayIndex];
+  if (!confirm(`למחוק את "${day?.label || 'יום זה'}" מהמחזור?`)) return;
+
+  DB.resetRoutineDone(routineId, dayIndex);
+  const newCycle = routine.cycle.filter((_, i) => i !== dayIndex);
+  const newIdx   = Math.min(routine.currentDayIndex ?? 0, Math.max(0, newCycle.length - 1));
+  DB.updateRoutine(routineId, { cycle: newCycle, currentDayIndex: newIdx });
+  renderRoutines();
+  showToast(`${day?.label || 'היום'} נמחק מהמחזור`);
 }
 
 function advanceCycleDay() {
