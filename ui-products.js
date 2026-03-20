@@ -227,15 +227,15 @@ function saveProductModal() {
 async function _runEnrichment(productId) {
   if (!DB.getSettings().apiKey) return;
   DB.updateProduct(productId, { enriching: true });
-  renderProducts();
+  scheduleRenderProducts();
   try {
     await AI.enrichProduct(productId);
     DB.updateProduct(productId, { enriching: false });
-    renderProducts();
+    scheduleRenderProducts();
     showToast('ניתוח AI הושלם ✦', 'success');
   } catch (err) {
     DB.updateProduct(productId, { enriching: false });
-    renderProducts();
+    scheduleRenderProducts();
     console.warn('Enrichment:', err.message);
   }
 }
@@ -595,4 +595,155 @@ function addStepFromModal(routineId, productId, cycleDay) {
   const card = document.getElementById(`card-${routineId}`);
   const body = document.getElementById(`body-${routineId}`);
   if (card && !card.classList.contains('open')) { card.classList.add('open'); body.classList.add('open'); }
+}
+
+// ─── Product Comparison ───────────────────────────────────────
+
+/** Selected product IDs for comparison */
+let _compareSelected = new Set();
+let _compareHistory  = [];
+
+function openCompareModal() {
+  const modal = document.getElementById('modal-compare');
+  if (!modal) return;
+  _compareSelected = new Set();
+  _compareHistory  = [];
+  _renderCompareProductList();
+  document.getElementById('compare-goal').value      = '';
+  document.getElementById('compare-free-text').value = '';
+  document.getElementById('compare-chat').innerHTML  = '';
+  modal.classList.remove('hidden');
+}
+
+function _renderCompareProductList() {
+  const listEl = document.getElementById('compare-product-list');
+  if (!listEl) return;
+  const products = DB.getProducts().filter(p => p.active);
+
+  if (!products.length) {
+    listEl.innerHTML = '<p class="text-soft" style="padding:.5rem 0;font-size:.78rem">אין מוצרים בספרייה</p>';
+    return;
+  }
+
+  listEl.innerHTML = products.map(p => {
+    const cat     = CATEGORIES[p.category] || CATEGORIES.other;
+    const checked = _compareSelected.has(p.id);
+    return `<label style="display:flex;align-items:center;gap:.65rem;padding:.5rem .65rem;border-radius:var(--r-sm);cursor:pointer;
+                           background:${checked ? 'var(--driftwood)' : 'transparent'};transition:background .15s"
+                   onclick="toggleCompareProduct('${p.id}')">
+      <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${checked ? 'var(--latte)' : 'var(--border)'};
+                  background:${checked ? 'var(--latte)' : 'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s">
+        ${checked ? '<svg viewBox="0 0 256 256" fill="white" width="11" height="11"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></svg>' : ''}
+      </div>
+      <div style="flex:1;min-width:0">
+        ${p.brand ? `<span style="font-family:'Poiret One',cursive;font-size:.65rem;color:var(--text-soft)">${esc(p.brand)}</span><br>` : ''}
+        <span style="font-size:.8rem;color:var(--text-dark)">${esc(p.name)}</span>
+      </div>
+      <span style="font-size:.65rem;color:var(--text-soft)">${cat.emoji} ${cat.label}</span>
+    </label>`;
+  }).join('');
+}
+
+function toggleCompareProduct(id) {
+  if (_compareSelected.has(id)) {
+    _compareSelected.delete(id);
+  } else {
+    _compareSelected.add(id);
+  }
+  _renderCompareProductList();
+  _updateCompareCount();
+}
+
+function _updateCompareCount() {
+  const countEl = document.getElementById('compare-count');
+  const n = _compareSelected.size;
+  const freeText = document.getElementById('compare-free-text')?.value?.trim().split('\n').filter(Boolean).length || 0;
+  const total = n + freeText;
+  if (countEl) countEl.textContent = total >= 2 ? `${total} מוצרים נבחרו` : total === 1 ? 'בחרי מוצר נוסף' : 'בחרי לפחות 2 מוצרים';
+}
+
+async function runProductComparison() {
+  const chatEl    = document.getElementById('compare-chat');
+  const goal      = document.getElementById('compare-goal')?.value.trim() || '';
+  const freeRaw   = document.getElementById('compare-free-text')?.value.trim() || '';
+  const freeItems = freeRaw.split('\n').map(s => s.trim()).filter(Boolean);
+  const ids       = [..._compareSelected];
+
+  if (ids.length + freeItems.length < 2) {
+    showToast('בחרי לפחות 2 מוצרים להשוואה', 'error'); return;
+  }
+  if (!DB.getSettings().apiKey) {
+    showToast('נא להזין מפתח API בהגדרות', 'error'); return;
+  }
+
+  // Add user message to chat
+  const products   = DB.getProducts();
+  const nameList   = [
+    ...ids.map(id => products.find(p => p.id === id)?.name).filter(Boolean),
+    ...freeItems,
+  ];
+  const userMsg = `השווי: ${nameList.join(' מול ')}${goal ? ' — ' + goal : ''}`;
+  _compareHistory.push({ role: 'user', content: userMsg });
+  _renderCompareChat();
+
+  // Loading
+  const loader = document.createElement('div');
+  loader.className = 'chat-bubble ai loading';
+  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
+  chatEl.appendChild(loader);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  try {
+    const reply = await AI.compareProducts(ids, freeItems, goal);
+    _compareHistory.push({ role: 'assistant', content: reply });
+    loader.remove();
+    _renderCompareChat();
+  } catch(err) {
+    loader.remove();
+    _compareHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
+    _renderCompareChat();
+  }
+}
+
+async function sendCompareFollowUp() {
+  const input   = document.getElementById('compare-followup-input');
+  const chatEl  = document.getElementById('compare-chat');
+  const msg     = input?.value?.trim();
+  if (!msg) return;
+  input.value = '';
+
+  _compareHistory.push({ role: 'user', content: msg });
+  _renderCompareChat();
+
+  const loader = document.createElement('div');
+  loader.className = 'chat-bubble ai loading';
+  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
+  chatEl.appendChild(loader);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  try {
+    const reply = await AI.chat(_compareHistory);
+    _compareHistory.push({ role: 'assistant', content: reply });
+    loader.remove();
+    _renderCompareChat();
+  } catch(err) {
+    loader.remove();
+    _compareHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
+    _renderCompareChat();
+  }
+}
+
+function _renderCompareChat() {
+  const chatEl = document.getElementById('compare-chat');
+  if (!chatEl) return;
+  chatEl.innerHTML = _compareHistory.map(m => {
+    const bubble = m.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}"
+                 style="max-width:100%;margin-bottom:.5rem">${bubble}</div>`;
+  }).join('');
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  // Show follow-up bar after first exchange
+  const followUpBar = document.getElementById('compare-followup-bar');
+  if (followUpBar) followUpBar.style.display = _compareHistory.length >= 2 ? 'flex' : 'none';
 }
