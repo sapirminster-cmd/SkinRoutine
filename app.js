@@ -1,3 +1,87 @@
+// ─── AI Text Formatter ────────────────────────────────────────
+/**
+ * Convert AI markdown response to clean, styled HTML.
+ * Handles: ### headings, ** bold, * lists, numbered lists, line breaks.
+ * @param {string} text
+ * @returns {string} HTML
+ */
+function _formatAI(text) {
+  if (!text) return '';
+
+  const lines = text.split('\n');
+  const out   = [];
+  let inList  = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Close open list before headings/empty
+    const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+
+    // Skip empty lines
+    if (!line.trim()) { closeList(); continue; }
+
+    // ### Heading 3
+    if (line.startsWith('### ')) {
+      closeList();
+      const t = _inlineFormat(line.slice(4));
+      out.push(`<div style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.5px var(--text-dark);font-size:.82rem;color:var(--text-dark);margin:.75rem 0 .25rem">${t}</div>`);
+      continue;
+    }
+
+    // ## Heading 2
+    if (line.startsWith('## ')) {
+      closeList();
+      const t = _inlineFormat(line.slice(3));
+      out.push(`<div style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.6px var(--text-dark);font-size:.88rem;color:var(--text-dark);margin:.9rem 0 .3rem;border-bottom:1px solid var(--border);padding-bottom:.2rem">${t}</div>`);
+      continue;
+    }
+
+    // # Heading 1
+    if (line.startsWith('# ')) {
+      closeList();
+      const t = _inlineFormat(line.slice(2));
+      out.push(`<div style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.7px var(--text-dark);font-size:.95rem;color:var(--text-dark);margin:.9rem 0 .35rem">${t}</div>`);
+      continue;
+    }
+
+    // Bullet list: - or *
+    if (/^[-*•] /.test(line)) {
+      if (!inList) { out.push('<ul style="margin:.3rem 0 .3rem 0;padding-right:1.1rem;list-style:none">'); inList = true; }
+      const t = _inlineFormat(line.replace(/^[-*•] /, ''));
+      out.push(`<li style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.15rem;position:relative">
+        <span style="position:absolute;right:-1rem;color:var(--latte)">·</span>${t}</li>`);
+      continue;
+    }
+
+    // Numbered list: 1. 2. etc
+    const numMatch = line.match(/^(\d+)\. (.+)/);
+    if (numMatch) {
+      if (!inList) { out.push('<ol style="margin:.3rem 0 .3rem 0;padding-right:1.3rem">'); inList = true; }
+      const t = _inlineFormat(numMatch[2]);
+      out.push(`<li style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.2rem">${t}</li>`);
+      continue;
+    }
+
+    // Regular paragraph
+    closeList();
+    const t = _inlineFormat(line);
+    out.push(`<p style="font-size:.79rem;color:var(--text-dark);line-height:1.65;margin-bottom:.3rem">${t}</p>`);
+  }
+
+  if (inList) out.push(inList ? '</ul>' : '</ol>');
+  return out.join('');
+}
+
+/** Apply inline formatting: bold, italic, inline code */
+function _inlineFormat(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text-dark);font-weight:600">$1</strong>')
+    .replace(/\*([^*]+)\*/g,   '<em style="color:var(--latte)">$1</em>')
+    .replace(/`([^`]+)`/g,       '<code style="background:rgba(176,152,144,.15);padding:.05rem .3rem;border-radius:3px;font-size:.75rem">$1</code>');
+}
+
 // ─── Render Scheduler ────────────────────────────────────────
 // Batches multiple render calls within one animation frame.
 // Instead of calling renderProducts() 3x in 1ms, runs it once.
