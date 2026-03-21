@@ -371,7 +371,12 @@ function _appendBubble(text, role) {
   if (!el) return;
   const div = document.createElement('div');
   div.className = `chat-bubble ${role}`;
-  div.textContent = text;
+  div.style.maxWidth = '100%';
+  if (role === 'ai') {
+    div.innerHTML = _formatAI(text);
+  } else {
+    div.textContent = text;
+  }
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
