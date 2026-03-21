@@ -248,23 +248,61 @@ async function aiConsultLibrary() {
   const products = DB.getProducts().filter(p => p.active);
   if (products.length < 2) throw new Error('הוסיפי לפחות 2 מוצרים לייעוץ');
 
+  // Concise product list to keep prompt + response lean
   const list = products.map(p =>
-    `- ${p.brand ? p.brand+' ' : ''}${p.name} | ${p.category} | ${(p.timeOfUse||[]).join('+')}${p.ingredients?.length ? ' | '+p.ingredients.slice(0,3).join(', ') : ''}`
-  ).join('\n');
+    `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`
+  ).join(', ');
 
-  const prompt = `נתחי את ספריית מוצרי הטיפוח ותני ייעוץ מקצועי.
+  const prompt = `נתחי את ספריית מוצרי הטיפוח.
 ${_profileCtx()}
+מוצרים: ${list}
 
-הספרייה:
-${list}
+ענה ב-JSON בלבד, קצר ותמציתי, ללא טקסט נוסף:
+{"summary":"משפט אחד","duplicates":[{"products":["שם1","שם2"],"reason":"הסבר קצר"}],"missing":[{"category":"קטגוריה","reason":"הסבר קצר","suggestion":"המלצה"}],"unnecessary":[{"product":"שם","reason":"הסבר קצר"}],"conflicts":[{"products":["שם1","שם2"],"reason":"הסבר קצר"}],"tips":["טיפ קצר"]}
 
-ענה ב-JSON בלבד, ללא טקסט נוסף:
-{"summary":"סיכום כללי 2 משפטים","duplicates":[{"products":["מוצר1","מוצר2"],"reason":"הסבר"}],"missing":[{"category":"קטגוריה","reason":"למה חשוב","suggestion":"המלצה"}],"unnecessary":[{"product":"שם","reason":"הסבר"}],"conflicts":[{"products":["מוצר1","מוצר2"],"reason":"הסבר"}],"tips":["טיפ1","טיפ2"]}
+חוקים: מערך ריק [] אם אין בעיה. כל reason/suggestion — עד 8 מילים.`;
 
-אם אין בעיה בקטגוריה — החזר מערך ריק [].`;
+  const text = await _aiCall({ _maxTok: 2500, messages: [{ role: 'user', content: prompt }] });
 
-  const text = await _aiCall({ _maxTok: 1500, messages: [{ role: 'user', content: prompt }] });
-  return _parseJSON(text);
+  // Safe parse — try to recover from truncated JSON
+  try {
+    return _parseJSON(text);
+  } catch {
+    // Attempt to auto-close truncated JSON
+    const recovered = _tryRecoverJSON(text);
+    if (recovered) return recovered;
+    throw new Error('התשובה ארוכה מדי — נסי שוב עם פחות מוצרים');
+  }
+}
+
+/**
+ * Attempt to recover a truncated JSON string by closing open structures.
+ * @param {string} text
+ * @returns {Object|null}
+ */
+function _tryRecoverJSON(text) {
+  try {
+    let s = text.replace(/```json|```/g, '').trim();
+    // Count open braces/brackets and close them
+    let braces = 0, brackets = 0;
+    let inStr = false, escape = false;
+    for (const ch of s) {
+      if (escape)       { escape = false; continue; }
+      if (ch === '\\') { escape = true;  continue; }
+      if (ch === '"' && !escape) { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (ch === '{') braces++;
+      if (ch === '}') braces--;
+      if (ch === '[') brackets++;
+      if (ch === ']') brackets--;
+    }
+    // Remove trailing incomplete string/value
+    s = s.replace(/,\s*"[^"]*$/, '').replace(/,\s*$/, '');
+    // Close open structures
+    s += ']'.repeat(Math.max(0, brackets));
+    s += '}'.repeat(Math.max(0, braces));
+    return JSON.parse(s);
+  } catch { return null; }
 }
 
 
