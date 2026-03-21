@@ -737,13 +737,10 @@ function _renderCompareChat() {
   const chatEl = document.getElementById('compare-chat');
   if (!chatEl) return;
   chatEl.innerHTML = _compareHistory.map(m => {
-    const bubble = m.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}"
-                 style="max-width:100%;margin-bottom:.5rem">${bubble}</div>`;
+    const content = m.role === 'assistant' ? _formatAI(m.content) : `<p style="font-size:.79rem;line-height:1.55">${m.content}</p>`;
+    return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}" style="max-width:100%;margin-bottom:.6rem">${content}</div>`;
   }).join('');
   chatEl.scrollTop = chatEl.scrollHeight;
-
-  // Show follow-up bar after first exchange
   const followUpBar = document.getElementById('compare-followup-bar');
   if (followUpBar) followUpBar.style.display = _compareHistory.length >= 2 ? 'flex' : 'none';
 }
