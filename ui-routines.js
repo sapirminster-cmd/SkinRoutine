@@ -379,7 +379,10 @@ function _renderCycleChat() {
   if (!bodyEl) return;
   bodyEl.innerHTML = _cycleExplainHistory
     .filter(m => m.role !== 'user' || _cycleExplainHistory.indexOf(m) > 0)
-    .map(m => { const bubble = m.content.replace(/\n/g, '<br>'); return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}" style="max-width:100%;margin-bottom:.5rem">${bubble}</div>`; })
+    .map(m => {
+      const content = m.role === 'assistant' ? _formatAI(m.content) : `<p style="font-size:.79rem;line-height:1.55">${m.content}</p>`;
+      return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}" style="max-width:100%;margin-bottom:.6rem">${content}</div>`;
+    })
     .join('');
   bodyEl.scrollTop = bodyEl.scrollHeight;
 }
