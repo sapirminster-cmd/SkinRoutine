@@ -168,13 +168,35 @@
       </div>
       <div class="chat-container">
         <div class="chat-messages" id="analysis-chat-messages">
-          <div class="chat-bubble ai">שלום! אני כאן לענות על כל שאלה לגבי טיפוח עור, מוצרים ורכיבים ✦</div>
+          <div class="chat-bubble ai">שלום! אני כאן לענות על כל שאלה לגבי טיפוח עור ומוצרים.<br>
+            <span style="font-size:.72rem;opacity:.7">ניתן לצרף תמונות של מוצרים להשוואה 📸</span>
+          </div>
         </div>
+
+        <!-- Pending image thumbnails -->
+        <div id="chat-image-previews"
+             style="display:none;gap:.4rem;flex-wrap:wrap;padding:.5rem 0 .3rem;
+                    border-top:1px solid var(--border);margin-top:.3rem"></div>
+
         <div class="chat-bar">
+          <!-- Camera button -->
+          <label style="display:flex;align-items:center;justify-content:center;
+                        width:36px;height:36px;flex-shrink:0;border-radius:50%;
+                        border:1.5px solid var(--border);cursor:pointer;
+                        color:var(--text-soft);transition:border-color .2s"
+                 title="צרפי תמונת מוצר">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="17" height="17">
+              <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+            </svg>
+            <input type="file" accept="image/*" multiple style="display:none"
+                   onchange="chatImageSelected(this)">
+          </label>
+
           <textarea class="chat-input" id="analysis-chat-input"
-            placeholder="שאלי אותי כל דבר..." rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
-          <button class="chat-send" onclick="sendChat()" aria-label="שלחי">
+                    placeholder="שאלי כל דבר, או צרפי תמונת מוצר..." rows="1"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+
+          <button class="chat-send" onclick="sendChat()">
             <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
               <path d="M222.4,43.17a8,8,0,0,0-8.1-1.61L22.72,108.84a8,8,0,0,0,.43,15.17L96,143.49V200a8,8,0,0,0,5.06,7.43A7.9,7.9,0,0,0,104,208a8,8,0,0,0,6.26-3L134.3,176l49.42,21.07A8,8,0,0,0,192,198a8,8,0,0,0,7.91-6.8l24-136A8,8,0,0,0,222.4,43.17ZM183.18,175.91l-54.51-23.24L174,111.4a8,8,0,1,0-11.32-11.31l-57.59,57.59L42.72,136.26,205.13,72.79Z"/>
             </svg>
