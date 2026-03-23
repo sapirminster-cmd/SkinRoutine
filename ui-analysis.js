@@ -356,14 +356,121 @@ function _thumb(dataUrl) {
 }
 
 // ─── Chat ─────────────────────────────────────────────────────
+
+/** Pending images attached to next message: [{ base64, mimeType, preview }] */
+let _chatPendingImages = [];
+
 function sendChat() {
   const input = document.getElementById('analysis-chat-input');
   const msg   = input?.value?.trim();
-  if (!msg) return;
+  if (!msg && !_chatPendingImages.length) return;
   input.value = '';
-  _appendBubble(msg, 'user');
-  _chatHistory.push({ role: 'user', content: msg });
-  _doChat();
+
+  const images  = [..._chatPendingImages];
+  _chatPendingImages = [];
+  _clearChatImagePreviews();
+
+  // Build user bubble — show image thumbnails + text
+  _appendUserBubble(msg, images);
+
+  // Build history message — text + optional image blocks
+  const userContent = [
+    ...images.map(img => ({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mimeType, data: img.base64 },
+    })),
+    ...(msg ? [{ type: 'text', text: msg }] : [{ type: 'text', text: 'מה המוצרים האלה? השווי ביניהם.' }]),
+  ];
+
+  _chatHistory.push({ role: 'user', content: userContent });
+  _doChatWithImages(images.length > 0);
+}
+
+/** Handle image file selection for chat */
+function chatImageSelected(input) {
+  const files = Array.from(input.files || []);
+  input.value = '';
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const MAX = 3.5 * 1024 * 1024;
+      const [header, base64] = e.target.result.split(',');
+      const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+      const bytes    = Math.ceil(base64.length * 3 / 4);
+
+      const store = (b64, mime, url) => {
+        _chatPendingImages.push({ base64: b64, mimeType: mime, preview: url });
+        _renderChatImagePreviews();
+      };
+
+      if (bytes <= MAX) { store(base64, mimeType, e.target.result); return; }
+
+      // Compress
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const MAX_DIM = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          const r = Math.min(MAX_DIM / w, MAX_DIM / h);
+          w = Math.round(w * r); h = Math.round(h * r);
+        }
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        let url = c.toDataURL('image/jpeg', 0.82);
+        if (url.length * 3 / 4 > MAX) url = c.toDataURL('image/jpeg', 0.65);
+        const [h2, b2] = url.split(',');
+        store(b2, 'image/jpeg', url);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function _renderChatImagePreviews() {
+  const el = document.getElementById('chat-image-previews');
+  if (!el) return;
+  if (!_chatPendingImages.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = _chatPendingImages.map((img, i) => `
+    <div style="position:relative;flex-shrink:0">
+      <img src="${img.preview}"
+           style="width:52px;height:52px;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--border)">
+      <button onclick="removeChatImage(${i})"
+        style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
+               background:var(--text-dark);color:var(--ivory);font-size:9px;
+               display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+function removeChatImage(i) {
+  _chatPendingImages.splice(i, 1);
+  _renderChatImagePreviews();
+}
+
+function _clearChatImagePreviews() {
+  const el = document.getElementById('chat-image-previews');
+  if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+}
+
+/** Append user bubble with optional image thumbnails */
+function _appendUserBubble(text, images) {
+  const el = document.getElementById('analysis-chat-messages');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'chat-bubble user';
+  div.style.maxWidth = '100%';
+
+  const thumbs = images.length
+    ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:${text ? '.4rem' : '0'}">
+         ${images.map(img => `<img src="${img.preview}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;opacity:.9">`).join('')}
+       </div>`
+    : '';
+  const textHtml = text ? `<span style="font-size:.8rem;line-height:1.5">${text}</span>` : '';
+  div.innerHTML = thumbs + textHtml;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
 }
 
 function _appendBubble(text, role) {
@@ -381,13 +488,16 @@ function _appendBubble(text, role) {
   el.scrollTop = el.scrollHeight;
 }
 
-async function _doChat() {
+async function _doChatWithImages(hasImages) {
   if (!DB.getSettings().apiKey) { _appendBubble('נא להזין מפתח API בהגדרות ✦', 'ai'); return; }
+
+  const messagesEl = document.getElementById('analysis-chat-messages');
   const loadEl = document.createElement('div');
   loadEl.className = 'chat-bubble ai loading';
   loadEl.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
-  document.getElementById('analysis-chat-messages')?.appendChild(loadEl);
+  messagesEl?.appendChild(loadEl);
   loadEl.scrollIntoView({ behavior: 'smooth' });
+
   try {
     const reply = await AI.chat(_chatHistory);
     _chatHistory.push({ role: 'assistant', content: reply });
@@ -398,3 +508,6 @@ async function _doChat() {
     _appendBubble(`שגיאה: ${err.message}`, 'ai');
   }
 }
+
+// Keep old _doChat as alias
+function _doChat() { _doChatWithImages(false); }
