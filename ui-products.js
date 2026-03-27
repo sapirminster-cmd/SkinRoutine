@@ -459,7 +459,11 @@ async function openLibraryConsult() {
     const data = await AI.consultLibrary();
     bodyEl.innerHTML = _buildConsultHTML(data);
   } catch(err) {
-    bodyEl.innerHTML = `<div class="conflict-warning">${esc(err.message)}</div>`;
+    const isOverload = err.retryable || err.message?.includes('עמוסים');
+    bodyEl.innerHTML = `<div class="conflict-warning">
+      ${esc(err.message)}
+      ${isOverload ? `<br><br><button onclick="openLibraryConsult()" class="btn btn-sm" style="font-size:.72rem">נסי שוב ↺</button>` : ''}
+    </div>`;
   }
 }
 
@@ -700,7 +704,10 @@ async function runProductComparison() {
     _renderCompareChat();
   } catch(err) {
     loader.remove();
-    _compareHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
+    const msg = err.retryable || err.message?.includes('עמוסים')
+      ? `${err.message} — <button onclick="runProductComparison()" style="background:none;border:none;cursor:pointer;color:var(--latte);font-size:.75rem;text-decoration:underline">נסי שוב ↺</button>`
+      : `שגיאה: ${err.message}`;
+    _compareHistory.push({ role: 'assistant', content: msg });
     _renderCompareChat();
   }
 }
