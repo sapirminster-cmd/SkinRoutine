@@ -10,6 +10,7 @@ let _analysisImages = []; // [{ base64, mimeType, preview }]
 function renderAnalysis() {
   _renderAnalysisHero();
   _renderAnalysisHistory();
+  checkSeasonalAdvice();
 }
 
 function _renderAnalysisHero() {
@@ -537,4 +538,155 @@ function _appendErrorBubble(err, retryFn) {
       class="btn btn-sm" style="font-size:.72rem">נסי שוב ↺</button>` : ''}`;
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// F3 — Build From Scratch
+// ═══════════════════════════════════════════════════════════════
+
+function openBuildFromScratch() {
+  const modal = document.getElementById('modal-build-scratch');
+  if (!modal) return;
+  document.getElementById('scratch-result').innerHTML = '';
+  document.querySelectorAll('.budget-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  modal.classList.remove('hidden');
+}
+
+async function runBuildFromScratch() {
+  const resultEl = document.getElementById('scratch-result');
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API', 'error'); return; }
+  const budget = document.querySelector('.budget-btn.active')?.dataset.budget || 'medium';
+
+  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    בונה תכנית קניות...
+  </div>`;
+
+  try {
+    const data = await AI.buildFromScratch(budget);
+    resultEl.innerHTML = _buildScratchHTML(data);
+  } catch(err) {
+    const retry = err.retryable || err.message?.includes('עמוסים');
+    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runBuildFromScratch()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
+  }
+}
+
+function selectBudget(el) {
+  document.querySelectorAll('.budget-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function _buildScratchHTML(d) {
+  if (!d) return '';
+  const priorityLabel = { high: 'דחוף', medium: 'מומלץ', low: 'נחמד' };
+  const priorityBg    = { high: 'rgba(192,57,43,.08)', medium: 'rgba(255,200,100,.1)', low: 'rgba(176,152,144,.1)' };
+
+  let h = '';
+
+  if (d.assessment) h += `<div style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.85rem;padding:.65rem .75rem;background:rgba(176,152,144,.1);border-radius:var(--r-sm)">${esc(d.assessment)}</div>`;
+
+  if (d.shoppingList?.length) {
+    h += `<div class="section-label" style="margin-bottom:.55rem">רשימת קניות</div>`;
+    h += d.shoppingList.map((item, i) => `
+      <div style="padding:.7rem .8rem;border-radius:var(--r-sm);margin-bottom:.5rem;background:${priorityBg[item.priority==='high'?'high':item.priority==='medium'?'medium':'low']};border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+          <span style="font-size:.62rem;width:18px;height:18px;border-radius:50%;background:var(--text-dark);color:var(--ivory);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${i+1}</span>
+          <span style="font-size:.82rem;font-weight:600;color:var(--text-dark)">${esc(item.recommendation)}</span>
+          ${item.price_range ? `<span style="font-size:.65rem;color:var(--text-soft);margin-right:auto">${esc(item.price_range)}</span>` : ''}
+        </div>
+        <div style="font-size:.72rem;color:var(--text-soft);margin-bottom:.25rem;padding-right:1.55rem">${esc(item.reason||'')}</div>
+        ${item.available_at ? `<div style="font-size:.62rem;color:var(--latte);padding-right:1.55rem">📍 ${esc(item.available_at)}</div>` : ''}
+        ${item.alternatives?.filter(Boolean).length ? `
+          <div style="font-size:.65rem;color:var(--text-soft);margin-top:.3rem;padding-right:1.55rem">
+            חלופות: ${item.alternatives.filter(Boolean).map(a => esc(a)).join(' · ')}
+          </div>` : ''}
+      </div>`).join('');
+  }
+
+  if (d.routineVision) {
+    h += `<div style="margin-top:.7rem;padding:.6rem .75rem;background:rgba(176,152,144,.1);border-radius:var(--r-sm);font-size:.76rem;color:var(--text-soft);line-height:1.6">
+      ✦ ${esc(d.routineVision)}
+    </div>`;
+  }
+
+  return h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// F4 — Seasonal Advice
+// ═══════════════════════════════════════════════════════════════
+
+async function checkSeasonalAdvice() {
+  const bannerEl = document.getElementById('seasonal-banner');
+  if (!bannerEl) return;
+  if (!DB.getSettings().apiKey || !DB.getProducts().filter(p=>p.active).length) return;
+
+  // Only show once per season
+  const month  = new Date().getMonth() + 1;
+  const season = month>=3&&month<=5?'spring':month>=6&&month<=8?'summer':month>=9&&month<=11?'fall':'winter';
+  const stored = localStorage.getItem('sr_season_shown');
+  if (stored === season) return;
+
+  bannerEl.style.display = 'flex';
+  bannerEl.innerHTML = `
+    <div style="flex:1">
+      <div style="font-size:.78rem;color:var(--text-dark);font-weight:600">התאמות עונתיות ✦</div>
+      <div style="font-size:.7rem;color:var(--text-soft);margin-top:.1rem">יש לי המלצות לשגרה שלך לעונה הנוכחית</div>
+    </div>
+    <button class="btn btn-sm btn-primary" onclick="openSeasonalModal()">הצגה</button>
+    <button onclick="dismissSeasonal('${season}')" style="background:none;border:none;cursor:pointer;color:var(--text-soft);font-size:1rem;padding:.2rem .4rem">✕</button>`;
+}
+
+function dismissSeasonal(season) {
+  localStorage.setItem('sr_season_shown', season);
+  const el = document.getElementById('seasonal-banner');
+  if (el) el.style.display = 'none';
+}
+
+async function openSeasonalModal() {
+  const modal  = document.getElementById('modal-seasonal');
+  const bodyEl = document.getElementById('seasonal-body');
+  if (!modal || !bodyEl) return;
+  modal.classList.remove('hidden');
+
+  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    טוענת המלצות עונתיות...
+  </div>`;
+
+  try {
+    const data = await AI.seasonalAdvice();
+    const month  = new Date().getMonth() + 1;
+    const season = month>=3&&month<=5?'spring':month>=6&&month<=8?'summer':month>=9&&month<=11?'fall':'winter';
+    localStorage.setItem('sr_season_shown', season);
+    const el = document.getElementById('seasonal-banner');
+    if (el) el.style.display = 'none';
+    bodyEl.innerHTML = _seasonalHTML(data);
+  } catch(err) {
+    bodyEl.innerHTML = `<div class="conflict-warning">${err.message}</div>`;
+  }
+}
+
+function _seasonalHTML(d) {
+  if (!d) return '';
+  const typeEmoji = { add:'➕', remove:'➖', swap:'🔄', adjust:'⚙️' };
+  const typeBg    = { add:'rgba(100,180,100,.1)', remove:'rgba(192,57,43,.07)', swap:'rgba(176,152,144,.12)', adjust:'rgba(255,200,100,.1)' };
+
+  let h = '';
+  if (d.headline) h += `<div style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.6px var(--text-dark);font-size:.95rem;color:var(--text-dark);margin-bottom:.75rem;text-align:center">${esc(d.headline)}</div>`;
+
+  if (d.adaptations?.length) {
+    h += d.adaptations.map(a => `
+      <div style="display:flex;align-items:flex-start;gap:.6rem;padding:.65rem .75rem;border-radius:var(--r-sm);margin-bottom:.45rem;background:${typeBg[a.type]||'var(--driftwood)'}">
+        <span style="font-size:1rem;flex-shrink:0">${typeEmoji[a.type]||'·'}</span>
+        <div>
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-dark)">${esc(a.action)}</div>
+          <div style="font-size:.7rem;color:var(--text-soft);margin-top:.1rem;line-height:1.45">${esc(a.reason)}${a.product ? ` — ${esc(a.product)}` : ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  if (d.tip) h += `<div style="margin-top:.6rem;padding:.6rem .75rem;background:rgba(176,152,144,.12);border-radius:var(--r-sm);font-size:.76rem;color:var(--text-soft);line-height:1.6">💡 ${esc(d.tip)}</div>`;
+
+  return h;
 }
