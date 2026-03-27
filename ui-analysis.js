@@ -191,7 +191,11 @@ async function runSkinAnalysis() {
     resultEl.innerHTML = _analysisHTML(analysis, true);
     resultEl.dataset.analysisJson = JSON.stringify(analysis);
   } catch(err) {
-    resultEl.innerHTML = `<div class="conflict-warning" style="margin-top:.5rem">${err.message}</div>`;
+    const isOverload = err.retryable || err.message?.includes('עמוסים');
+    resultEl.innerHTML = `<div class="conflict-warning" style="margin-top:.5rem">
+      ${err.message}
+      ${isOverload ? `<button onclick="runSkinAnalysis()" class="btn btn-sm" style="margin-top:.5rem;font-size:.72rem">נסי שוב ↺</button>` : ''}
+    </div>`;
   }
 }
 
@@ -505,9 +509,32 @@ async function _doChatWithImages(hasImages) {
     _appendBubble(reply, 'ai');
   } catch (err) {
     loadEl.remove();
-    _appendBubble(`שגיאה: ${err.message}`, 'ai');
+    _appendErrorBubble(err, () => {
+      // Retry: remove last user message from history and re-send
+      _doChatWithImages(false);
+    });
   }
 }
 
 // Keep old _doChat as alias
 function _doChat() { _doChatWithImages(false); }
+
+/**
+ * Append an error bubble. If error is retryable, shows a retry button.
+ */
+function _appendErrorBubble(err, retryFn) {
+  const el = document.getElementById('analysis-chat-messages');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ai';
+  div.style.maxWidth = '100%';
+  div.style.background = 'rgba(192,57,43,.07)';
+  div.style.border = '1px solid rgba(192,57,43,.2)';
+
+  const isOverload = err.retryable || err.message?.includes('עמוסים');
+  div.innerHTML = `<p style="font-size:.78rem;color:#c0392b;margin-bottom:${isOverload ? '.5rem' : '0'}">${err.message}</p>
+    ${isOverload ? `<button onclick="this.closest('.chat-bubble').remove();(${retryFn.toString()})()"
+      class="btn btn-sm" style="font-size:.72rem">נסי שוב ↺</button>` : ''}`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
