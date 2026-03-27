@@ -751,3 +751,260 @@ function _renderCompareChat() {
   const followUpBar = document.getElementById('compare-followup-bar');
   if (followUpBar) followUpBar.style.display = _compareHistory.length >= 2 ? 'flex' : 'none';
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// F1 + F2 — Examine Product + Analyze Ingredients
+// ═══════════════════════════════════════════════════════════════
+
+let _examineImage = null; // { base64, mimeType, preview }
+
+function openExamineModal() {
+  const modal = document.getElementById('modal-examine');
+  if (!modal) return;
+  _examineImage = null;
+  document.getElementById('examine-preview').style.display = 'none';
+  document.getElementById('examine-preview').src = '';
+  document.getElementById('examine-result').innerHTML = '';
+  document.getElementById('examine-hint').value = '';
+  document.getElementById('examine-file').value = '';
+  // Reset tabs
+  document.querySelectorAll('.examine-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  document.querySelectorAll('.examine-panel').forEach((p,i) => p.style.display = i===0 ? 'block' : 'none');
+  modal.classList.remove('hidden');
+}
+
+function switchExamineTab(tab, el) {
+  document.querySelectorAll('.examine-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('examine-panel-product').style.display    = tab === 'product'     ? 'block' : 'none';
+  document.getElementById('examine-panel-ingredients').style.display = tab === 'ingredients' ? 'block' : 'none';
+  // Reset result on tab switch
+  document.getElementById('examine-result').innerHTML = '';
+}
+
+function examineFileSelected(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  document.getElementById('examine-result').innerHTML = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const MAX = 3.5 * 1024 * 1024;
+    const [header, base64] = e.target.result.split(',');
+    const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+    const store = (b64, mime, url) => {
+      _examineImage = { base64: b64, mimeType: mime, preview: url };
+      const prev = document.getElementById('examine-preview');
+      prev.src = url; prev.style.display = 'block';
+    };
+    if (Math.ceil(base64.length * 3/4) <= MAX) { store(base64, mimeType, e.target.result); return; }
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const MAX_DIM = 1400;
+      if (w > MAX_DIM || h > MAX_DIM) { const r = Math.min(MAX_DIM/w, MAX_DIM/h); w=Math.round(w*r); h=Math.round(h*r); }
+      c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+      let url = c.toDataURL('image/jpeg', 0.82);
+      if (url.length*3/4 > MAX) url = c.toDataURL('image/jpeg', 0.65);
+      const [h2,b2] = url.split(',');
+      store(b2, 'image/jpeg', url);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runExamineProduct() {
+  const resultEl = document.getElementById('examine-result');
+  if (!_examineImage) { showToast('נא לבחור תמונה', 'error'); return; }
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API', 'error'); return; }
+  const hint = document.getElementById('examine-hint')?.value.trim() || '';
+
+  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    בוחנת את המוצר...
+  </div>`;
+
+  try {
+    const data = await AI.examineProduct(_examineImage.base64, _examineImage.mimeType, hint);
+    resultEl.innerHTML = _examineResultHTML(data);
+    resultEl.dataset.examineJson = JSON.stringify(data);
+  } catch(err) {
+    const retry = err.retryable || err.message?.includes('עמוסים');
+    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runExamineProduct()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
+  }
+}
+
+async function runAnalyzeIngredients() {
+  const resultEl = document.getElementById('examine-result');
+  if (!_examineImage) { showToast('נא לבחור תמונה של התווית', 'error'); return; }
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API', 'error'); return; }
+
+  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    מנתחת רכיבים...
+  </div>`;
+
+  try {
+    const data = await AI.analyzeIngredients(_examineImage.base64, _examineImage.mimeType);
+    resultEl.innerHTML = _ingredientsResultHTML(data);
+  } catch(err) {
+    const retry = err.retryable || err.message?.includes('עמוסים');
+    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runAnalyzeIngredients()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
+  }
+}
+
+function _examineResultHTML(d) {
+  if (!d) return '';
+  const score = d.fitScore || 0;
+  const scoreCls = score >= 75 ? '#6a8f6a' : score >= 50 ? 'var(--latte)' : '#c0392b';
+  const verdictEmoji = { buy: '✓ קני!', skip: '✗ דלגי', maybe: '~ אולי' }[d.verdict] || '';
+  const verdictBg    = { buy: 'rgba(100,180,100,.12)', skip: 'rgba(192,57,43,.08)', maybe: 'rgba(255,200,100,.12)' }[d.verdict] || 'var(--driftwood)';
+  const verdictColor = { buy: '#6a8f6a', skip: '#c0392b', maybe: '#8B6914' }[d.verdict] || 'var(--text-soft)';
+  const flagEmoji    = { good: '✓', caution: '⚠', avoid: '✗', neutral: '·' };
+  const flagColor    = { good: '#6a8f6a', caution: '#8B6914', avoid: '#c0392b', neutral: 'var(--text-soft)' };
+
+  let h = '';
+
+  // Header: identified product + score + verdict
+  h += `<div style="display:flex;align-items:flex-start;gap:.8rem;margin-bottom:.85rem;padding:.75rem;background:rgba(176,152,144,.1);border-radius:var(--r-sm)">
+    <div style="text-align:center;flex-shrink:0">
+      <div style="font-size:1.6rem;font-weight:700;color:${scoreCls};line-height:1">${score}</div>
+      <div style="font-size:.58rem;color:var(--text-soft)">התאמה</div>
+    </div>
+    <div style="flex:1;min-width:0">
+      ${d.identified?.brand ? `<div style="font-family:'Poiret One',cursive;font-size:.68rem;color:var(--text-soft)">${esc(d.identified.brand)}</div>` : ''}
+      ${d.identified?.name  ? `<div style="font-size:.85rem;font-weight:600;color:var(--text-dark)">${esc(d.identified.name)}</div>` : ''}
+      <div style="font-size:.7rem;color:var(--latte);margin-top:.15rem">${esc(d.fitLabel||'')} · ${esc(d.skinCompatibility||'')}</div>
+    </div>
+    <div style="padding:.3rem .65rem;border-radius:20px;background:${verdictBg};color:${verdictColor};font-size:.75rem;font-weight:600;flex-shrink:0">
+      ${verdictEmoji}
+    </div>
+  </div>`;
+
+  // Verdict reason
+  if (d.verdictReason) h += `<p style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.7rem;padding:.55rem .7rem;border-radius:var(--r-sm);background:${verdictBg}">${esc(d.verdictReason)}</p>`;
+
+  // Pros + Cons
+  if (d.pros?.length || d.cons?.length) {
+    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.7rem">`;
+    if (d.pros?.length) h += `<div style="background:rgba(100,180,100,.08);border-radius:var(--r-sm);padding:.5rem .6rem">
+      <div style="font-size:.62rem;color:#6a8f6a;font-weight:600;margin-bottom:.25rem">✓ יתרונות</div>
+      ${d.pros.map(p=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.5">· ${esc(p)}</div>`).join('')}
+    </div>`;
+    if (d.cons?.length) h += `<div style="background:rgba(192,57,43,.05);border-radius:var(--r-sm);padding:.5rem .6rem">
+      <div style="font-size:.62rem;color:#c0392b;font-weight:600;margin-bottom:.25rem">⚠ חסרונות</div>
+      ${d.cons.map(c=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.5">· ${esc(c)}</div>`).join('')}
+    </div>`;
+    h += '</div>';
+  }
+
+  // Conflicts + duplicates
+  if (d.conflicts?.filter(c=>c.product).length) {
+    h += `<div class="conflict-warning" style="margin-bottom:.5rem">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
+        <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
+      </svg>
+      <span>${d.conflicts.filter(c=>c.product).map(c=>`מתנגש עם ${esc(c.product)}: ${esc(c.reason)}`).join(' · ')}</span>
+    </div>`;
+  }
+  if (d.duplicates?.filter(c=>c.product).length) {
+    h += `<div style="font-size:.74rem;color:var(--latte);padding:.4rem .6rem;background:rgba(176,152,144,.12);border-radius:var(--r-sm);margin-bottom:.5rem">
+      דומה ל: ${d.duplicates.filter(c=>c.product).map(c=>`${esc(c.product)}`).join(', ')}
+    </div>`;
+  }
+
+  // Placement
+  if (d.routinePlacement?.time) {
+    const timeLabel = { morning: 'בוקר', night: 'ערב', both: 'בוקר + ערב' }[d.routinePlacement.time] || d.routinePlacement.time;
+    h += `<div style="font-size:.72rem;color:var(--text-soft);padding:.35rem .6rem;background:var(--driftwood);border-radius:var(--r-sm);margin-bottom:.6rem">
+      📍 ${timeLabel}${d.routinePlacement.after ? ` · אחרי ${esc(d.routinePlacement.after)}` : ''}${d.routinePlacement.before ? ` · לפני ${esc(d.routinePlacement.before)}` : ''}
+    </div>`;
+  }
+
+  // Key ingredients
+  if (d.keyIngredients?.length) {
+    h += `<div class="section-label" style="margin-bottom:.4rem">רכיבים מרכזיים</div>`;
+    h += `<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.7rem">`;
+    h += d.keyIngredients.map(i => `<span style="font-size:.65rem;padding:.15rem .5rem;border-radius:4px;
+      background:${{ good:'rgba(100,180,100,.12)', caution:'rgba(255,200,100,.15)', avoid:'rgba(192,57,43,.1)', neutral:'rgba(176,152,144,.12)' }[i.flag]||'var(--driftwood)'};
+      color:${{ good:'#6a8f6a', caution:'#8B6914', avoid:'#c0392b', neutral:'var(--text-soft)' }[i.flag]||'var(--text-soft)'}">
+      ${flagEmoji[i.flag]||''} ${esc(i.name)}${i.benefit ? ` — ${esc(i.benefit)}` : ''}
+    </span>`).join('');
+    h += '</div>';
+  }
+
+  // Add to library button
+  if (d.identified?.name && d.verdict !== 'skip') {
+    const prod = JSON.stringify({ brand: d.identified.brand||'', name: d.identified.name, category: d.identified.category||'other', subCat: d.identified.subCat||'', ingredients: (d.keyIngredients||[]).map(i=>i.name), benefits: d.pros||[], warnings: d.cons||[] });
+    h += `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:.3rem"
+      onclick='addExaminedToLibrary(${prod.replace(/'/g,"&#39;")})'>+ הוסיפי לספרייה</button>`;
+  }
+
+  return h;
+}
+
+function _ingredientsResultHTML(d) {
+  if (!d) return '';
+  const ratingLabel = { clean:'נקי ✓', mostly_clean:'נקי ברובו', mixed:'מעורב', concerning:'מעורר חשש' }[d.overallRating] || '';
+  const ratingBg    = { clean:'rgba(100,180,100,.1)', mostly_clean:'rgba(100,180,100,.07)', mixed:'rgba(255,200,100,.1)', concerning:'rgba(192,57,43,.08)' }[d.overallRating] || 'var(--driftwood)';
+  const ratingColor = { clean:'#6a8f6a', mostly_clean:'#6a8f6a', mixed:'#8B6914', concerning:'#c0392b' }[d.overallRating] || 'var(--text-soft)';
+  const flagColor   = { good:'#6a8f6a', neutral:'var(--text-soft)', caution:'#8B6914', avoid:'#c0392b' };
+  const flagBg      = { good:'rgba(100,180,100,.1)', neutral:'rgba(176,152,144,.1)', caution:'rgba(255,200,100,.12)', avoid:'rgba(192,57,43,.08)' };
+  const flagLabel   = { good:'✓', neutral:'·', caution:'⚠', avoid:'✗' };
+
+  let h = '';
+
+  // Summary header
+  h += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;padding:.6rem .75rem;background:${ratingBg};border-radius:var(--r-sm)">
+    <div>
+      ${d.productGuess ? `<div style="font-size:.68rem;color:var(--text-soft);margin-bottom:.15rem">${esc(d.productGuess)}</div>` : ''}
+      <div style="font-size:.78rem;color:var(--text-dark);line-height:1.5">${esc(d.summary||'')}</div>
+    </div>
+    <div style="font-size:.72rem;font-weight:600;color:${ratingColor};flex-shrink:0;margin-right:.6rem">${ratingLabel}</div>
+  </div>`;
+
+  // Highlights + warnings
+  if (d.highlights?.length || d.warnings?.length) {
+    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.7rem">`;
+    if (d.highlights?.length) h += `<div style="background:rgba(100,180,100,.07);border-radius:var(--r-sm);padding:.5rem .6rem">
+      <div style="font-size:.6rem;color:#6a8f6a;font-weight:600;margin-bottom:.25rem">★ בולטים</div>
+      ${d.highlights.map(i=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.4">· ${esc(i)}</div>`).join('')}
+    </div>`;
+    if (d.warnings?.filter(Boolean).length) h += `<div style="background:rgba(192,57,43,.06);border-radius:var(--r-sm);padding:.5rem .6rem">
+      <div style="font-size:.6rem;color:#c0392b;font-weight:600;margin-bottom:.25rem">⚠ לשים לב</div>
+      ${d.warnings.filter(Boolean).map(w=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.4">· ${esc(w)}</div>`).join('')}
+    </div>`;
+    h += '</div>';
+  }
+
+  // Ingredients table
+  if (d.ingredients?.length) {
+    h += `<div class="section-label" style="margin-bottom:.4rem">רכיבים</div>`;
+    h += d.ingredients.map(i => `
+      <div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem .5rem;border-radius:6px;margin-bottom:.25rem;background:${flagBg[i.flag]||'rgba(176,152,144,.07)'}">
+        <span style="font-size:.65rem;color:${flagColor[i.flag]};font-weight:700;flex-shrink:0;min-width:1rem;margin-top:.1rem">${flagLabel[i.flag]||'·'}</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:.75rem;color:var(--text-dark);font-weight:600">${esc(i.name)}</span>
+          ${i.role ? `<span style="font-size:.68rem;color:var(--text-soft)"> — ${esc(i.role)}</span>` : ''}
+          ${i.note ? `<div style="font-size:.65rem;color:${flagColor[i.flag]};margin-top:.08rem">${esc(i.note)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  return h;
+}
+
+function addExaminedToLibrary(data) {
+  const product = DB.addProduct({
+    brand: data.brand||'', name: data.name||'',
+    category: data.category||'other', subCat: data.subCat||'',
+    timeOfUse: ['morning','night'], ingredients: data.ingredients||[],
+    benefits: data.benefits||[], warnings: data.warnings||[], active: true,
+  });
+  closeModal('modal-examine');
+  renderProducts();
+  showToast(`${product.name} נוסף לספרייה ✦`, 'success');
+  if (DB.getSettings().apiKey) _runEnrichment(product.id);
+}
