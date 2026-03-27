@@ -31,6 +31,11 @@ async function _aiCall(body) {
     const err = await response.json().catch(() => ({}));
     if (response.status === 401) throw new Error('מפתח API שגוי — עדכני בהגדרות');
     if (response.status === 429) throw new Error('חרגת ממגבלת הבקשות — נסי שוב בעוד רגע');
+    if (response.status === 529 || err.error?.message?.toLowerCase().includes('overload')) {
+      const e = new Error('השרתים עמוסים כרגע — נסי שוב בעוד כמה שניות');
+      e.retryable = true;
+      throw e;
+    }
     throw new Error(err.error?.message || `שגיאת API (${response.status})`);
   }
 
@@ -51,9 +56,10 @@ function _profileCtx() {
   if (p.skinType) parts.push(`סוג עור: ${labels[p.skinType] || p.skinType}`);
   if (p.age)      parts.push(`גיל: ${p.age}`);
   if (p.concerns?.length) parts.push(`דאגות: ${p.concerns.join(', ')}`);
-  const profile = parts.length ? `פרופיל: ${parts.join(' · ')}` : '';
-  const custom  = s.customPrompt ? `הקשר: ${s.customPrompt}` : '';
-  return [profile, custom].filter(Boolean).join('\n');
+  const profile  = parts.length ? `פרופיל: ${parts.join(' · ')}` : '';
+  const custom   = s.customPrompt ? `הקשר: ${s.customPrompt}` : '';
+  const market   = 'זמינות מוצרים: ישראל + Sephora UK. בעת המלצה על מוצרים חדשים — העדיפי מותגים זמינים בשוקים אלה (למשל: CeraVe, La Roche-Posay, The Ordinary, Paula\'s Choice, Drunk Elephant, Tatcha, Glow Recipe, COSRX, Kiehl\'s, Estée Lauder, Clinique, Vichy, Avène, SVR, Bioderma).';
+  return [profile, custom, market].filter(Boolean).join('\n');
 }
 
 // ─── 1. Enrich product ────────────────────────────────────────
