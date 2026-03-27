@@ -351,6 +351,50 @@ ${allItems.map((item, i) => `${i+1}. ${item}`).join('\n')}
   return _aiCall({ messages: [{ role: 'user', content: prompt }] });
 }
 
+
+async function aiExamineProduct(base64, mimeType, productHint) {
+  const products = DB.getProducts().filter(p => p.active);
+  const routines = DB.getRoutines();
+  const libraryCtx = products.length ? products.map(p => `${p.brand?p.brand+' ':''}${p.name} (${p.category})`).join(', ') : 'ספרייה ריקה';
+  const morningLen = routines.find(r => r.id === 'morning')?.steps?.length || 0;
+  const nightLen   = routines.find(r => r.id === 'night')?.cycle?.length   || 0;
+  const hint = productHint ? `\nהערת המשתמשת: ${productHint}` : '';
+  const prompt = `בחני את המוצר בתמונה.\n${_profileCtx()}${hint}\nספרייה: ${libraryCtx}\nשגרה: בוקר ${morningLen} שלבים, ערב ${nightLen} ימים.\n\nענה ב-JSON בלבד:\n{"identified":{"brand":"","name":"","category":"","subCat":""},"fitScore":80,"fitLabel":"מתאים","skinCompatibility":"","pros":[""],"cons":[""],"conflicts":[{"product":"","reason":""}],"duplicates":[{"product":"","reason":""}],"routinePlacement":{"time":"morning","after":"","before":""},"verdict":"buy","verdictReason":"","keyIngredients":[{"name":"","benefit":"","flag":"good"}]}\nfitLabel: מתאים מאוד|מתאים|מתאים חלקית|לא מתאים. verdict: buy/skip/maybe.`;
+  const text = await _aiCall({ _maxTok: 1500, messages: [{ role: 'user', content: [
+    { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+    { type: 'text', text: prompt },
+  ]}] });
+  return _parseJSON(text);
+}
+
+async function aiAnalyzeIngredients(base64, mimeType) {
+  const prompt = `נתחי את רשימת הרכיבים בתמונה.\n${_profileCtx()}\nענה ב-JSON בלבד:\n{"productGuess":"","ingredients":[{"name":"","role":"","flag":"good","note":""}],"highlights":[""],"warnings":[""],"overallRating":"clean","summary":""}\nflag: good|neutral|caution|avoid. עד 15 רכיבים פעילים.`;
+  const text = await _aiCall({ _maxTok: 1500, messages: [{ role: 'user', content: [
+    { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+    { type: 'text', text: prompt },
+  ]}] });
+  return _parseJSON(text);
+}
+
+async function aiBuildFromScratch(budget) {
+  const labels = { low: 'עד 150₪', medium: 'עד 400₪', unlimited: 'ללא הגבלה' };
+  const products = DB.getProducts().filter(p => p.active);
+  const existing = products.map(p => `${p.name}(${p.category})`).join(', ') || 'אין';
+  const prompt = `בני תכנית שגרה ורשימת קניות.\n${_profileCtx()}\nתקציב: ${labels[budget]||'ללא הגבלה'}\nקיים: ${existing}\nענה ב-JSON בלבד:\n{"assessment":"","gaps":[{"category":"","priority":"high","reason":""}],"shoppingList":[{"priority":1,"category":"","recommendation":"","alternatives":[""],"price_range":"","reason":"","available_at":"ישראל"}],"routineVision":""}`;
+  const text = await _aiCall({ _maxTok: 2000, messages: [{ role: 'user', content: prompt }] });
+  return _parseJSON(text);
+}
+
+async function aiSeasonalAdvice() {
+  const m = new Date().getMonth() + 1;
+  const season = m>=3&&m<=5?'אביב':m>=6&&m<=8?'קיץ':m>=9&&m<=11?'סתיו':'חורף';
+  const products = DB.getProducts().filter(p => p.active);
+  const existing = products.map(p => `${p.name}(${p.category})`).join(', ') || 'אין';
+  const prompt = `המלצות ל${season} בישראל.\n${_profileCtx()}\nמוצרים: ${existing}\nענה ב-JSON בלבד:\n{"season":"${season}","headline":"","adaptations":[{"type":"add","action":"","reason":"","product":""}],"tip":""}\ntype: add|remove|swap|adjust. עד 4 המלצות.`;
+  const text = await _aiCall({ _maxTok: 800, messages: [{ role: 'user', content: prompt }] });
+  return _parseJSON(text);
+}
+
 // ─── Public API ───────────────────────────────────────────────
 window.AI = {
   enrichProduct:  aiEnrichProduct,
@@ -361,5 +405,9 @@ window.AI = {
   chat:           aiChat,
   explainCycle:   aiExplainCycle,
   consultLibrary: aiConsultLibrary,
-  compareProducts: aiCompareProducts,
+  compareProducts:    aiCompareProducts,
+  examineProduct:     aiExamineProduct,
+  analyzeIngredients: aiAnalyzeIngredients,
+  buildFromScratch:   aiBuildFromScratch,
+  seasonalAdvice:     aiSeasonalAdvice,
 };
