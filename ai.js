@@ -128,6 +128,13 @@ ${_profileCtx()}
 מוצרים:
 ${list}
 כלולי רק מוצרים עם "morning". סדר: קלנזר→טונר→סרום→עיניים→לחות→SPF. מוצר אחד לכל קטגוריה.
+
+כללי התנגשויות חובה:
+- רטינואיד/רטינול — ערב בלבד, אסור בבוקר
+- AHA/BHA/אקספוליאנט — ערב בלבד אלא אם תג "morning" מפורש
+- SPF — חייב להיות השלב האחרון אם קיים
+- אל תכלולי מוצר שסומן "night" בלבד
+
 ענה ב-JSON בלבד: {"steps":[{"productId":"ID","order":1,"note":""}]}`;
 
   const text = await _aiCall({ messages:[{ role:'user', content:prompt }] });
@@ -136,18 +143,32 @@ ${list}
 }
 
 // ─── 4. Build night cycle ─────────────────────────────────────
-async function aiBuildNightCycle() {
+async function aiBuildNightCycle(cycleType = 'classic') {
   const products = DB.getProducts().filter(p => p.active);
   if (!products.length) throw new Error('אין מוצרים בספרייה');
   const list = products.map(p =>
     `ID:${p.id} | ${p.brand?p.brand+' ':''}${p.name} | ${p.category} | ${(p.timeOfUse||[]).join('+')}`
   ).join('\n');
 
+  const cycleGuide = {
+    classic:  'מחזור קלאסי (4 לילות): לילה 1 אקספוליאציה (AHA/BHA), לילה 2 רטינול/רטינואיד, לילות 3-4 התאוששות (לחות, מחסום). אל תשים רטינול ואקספוליאנט באותו לילה.',
+    gentle:   'מחזור עדין (4 לילות): ללא רטינול. לילה 1 אקספוליאציה קלה (PHA או חומצה קלה), לילות 2-4 טיפוח ולחות עמוקה. מתאים לעור רגיש.',
+    advanced: 'מחזור מתקדם (5 לילות): לילה 1 AHA, לילה 2 BHA, לילה 3 רטינול, לילות 4-5 התאוששות. רק אם הספרייה מכילה את המוצרים המתאימים.',
+    minimal:  'מחזור מינימלי (2 לילות): לילה 1 טיפול (אקספוליאנט או רטינול — לא שניהם), לילה 2 לחות ומנוחה. לעור רגיש מאוד או מתחילות.',
+  }[cycleType] || 'מחזור קלאסי: אקספוליאציה→רטינול→התאוששות→התאוששות';
+
   const prompt = `בני מחזור טיפוח לילי (skin cycling).
 ${_profileCtx()}
+סוג מחזור מבוקש: ${cycleGuide}
 מוצרים:
 ${list}
-כלולי רק מוצרים עם "night". מחזור קלאסי: אקספוליאציה→רטינול→התאוששות→התאוששות. התאם לפי מוצרים זמינים.
+
+כללי התנגשויות חובה:
+- אסור לשלב AHA/BHA ורטינול באותו לילה
+- רטינואיד — לילה בלבד, לא בוקר
+- אל תכלולי מוצר שסומן "morning" בלבד
+- אם אין מספיק מוצרים לסוג המחזור המבוקש — בני מחזור קצר יותר
+
 ענה ב-JSON בלבד: {"cycle":[{"label":"שם יום","icon":"✨","description":"תיאור","steps":[{"productId":"ID","order":1,"note":""}]}]}`;
 
   const text = await _aiCall({ messages:[{ role:'user', content:prompt }] });
@@ -395,12 +416,50 @@ async function aiSeasonalAdvice() {
   return _parseJSON(text);
 }
 
+
+async function aiExplainMorning() {
+  const routine  = DB.getRoutines().find(r => r.id === 'morning');
+  const products = DB.getProducts();
+  if (!routine?.steps?.length) throw new Error('אין שגרת בוקר לנתח');
+
+  const stepsDesc = routine.steps
+    .sort((a,b) => a.order - b.order)
+    .map(s => products.find(p => p.id === s.productId))
+    .filter(Boolean)
+    .map((p, i) => `${i+1}. ${p.brand?p.brand+' ':''}${p.name} (${p.category})`)
+    .join('\n');
+
+  const allProds = products.filter(p => p.active)
+    .map(p => `${p.brand?p.brand+' ':''}${p.name} (${p.category})`).join(', ');
+
+  const prompt = `הסבירי את שגרת הבוקר בעברית, בסגנון חמות ומקצועי.
+
+שגרת הבוקר שנבנתה:
+${stepsDesc}
+
+כל המוצרים הזמינים:
+${allProds}
+
+${_profileCtx()}
+
+ענה עם:
+1. הלוגיקה הכללית של השגרה ולמה הסדר הזה
+2. לגבי כל מוצר — למה נבחר ומה תפקידו
+3. אם יש מוצרים שלא נכללו — למה
+4. טיפ אחד לשיפור אם יש
+
+כתבי בגוף שני, פסקאות קצרות ונעימות.`;
+
+  return _aiCall({ messages: [{ role: 'user', content: prompt }] });
+}
+
 // ─── Public API ───────────────────────────────────────────────
 window.AI = {
   enrichProduct:  aiEnrichProduct,
   scanProducts:   aiScanProducts,
   buildMorning:   aiBuildMorning,
   buildNightCycle:aiBuildNightCycle,
+  explainMorning:  aiExplainMorning,
   analyzeSkin:    aiAnalyzeSkin,  // now accepts images array
   chat:           aiChat,
   explainCycle:   aiExplainCycle,
