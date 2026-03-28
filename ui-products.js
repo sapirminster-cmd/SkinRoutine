@@ -598,7 +598,13 @@ function masFilter(cat, btn) {
   const modal     = document.getElementById('modal-add-step');
   const routineId = modal?.dataset.routineId;
   const day       = modal?.dataset.cycleDay !== '' ? Number(modal.dataset.cycleDay) : null;
-  _renderStepList(routineId, day, cat);
+  const replaceId = modal?.dataset.replaceId || '';
+  // Delegate to replace list renderer if in replace mode
+  if (replaceId && typeof _renderReplaceList === 'function') {
+    _renderReplaceList(routineId, day, cat, replaceId);
+  } else {
+    _renderStepList(routineId, day, cat);
+  }
 }
 
 function _renderStepList(routineId, cycleDay, catFilter) {
