@@ -364,26 +364,51 @@ async function buildCycleWithGoal() {
   } catch(err) { showToast(err.message, 'error'); }
 }
 
-/** Open modal with AI explanation of the current cycle */
+/** Open modal with AI explanation of the current cycle.
+ *  If the night card is open → focus on the currently visible day tab.
+ *  If closed → explain the full cycle.
+ */
 async function openCycleExplanation() {
   const modal   = document.getElementById('modal-cycle-explain');
+  const titleEl = document.getElementById('cycle-explain-title');
   const bodyEl  = document.getElementById('cycle-explain-body');
   if (!modal || !bodyEl) return;
-
   if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
 
+  // Detect whether the night card is currently open
+  const nightCard = document.getElementById('card-night');
+  const isOpen    = nightCard?.classList.contains('open');
+
+  // If open — use the active day index; if closed — general explanation
+  const night          = DB.getRoutines().find(r => r.id === 'night');
+  const focusDayIndex  = isOpen ? (night?.currentDayIndex ?? null) : null;
+  const focusDay       = focusDayIndex !== null ? night?.cycle?.[focusDayIndex] : null;
+
+  // Update modal title to reflect context
+  if (titleEl) {
+    titleEl.textContent = focusDay
+      ? `למה ${focusDay.label}?`
+      : 'למה בנית את המחזור כך?';
+  }
+
   modal.classList.remove('hidden');
+  const loadingLabel = focusDay
+    ? `מנתחת את ${focusDay.label}...`
+    : 'מנתחת את המחזור כולו...';
+
   bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;color:var(--text-soft);font-size:.8rem">
     <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    AI מנתח את המחזור...
+    ${loadingLabel}
   </div>`;
-  // Reset chat for this session
   _cycleExplainHistory = [];
 
   try {
-    const explanation = await AI.explainCycle();
+    const explanation = await AI.explainCycle(focusDayIndex);
+    const userMsg = focusDay
+      ? `הסבירי לי את ${focusDay.label} במחזור`
+      : 'הסבירי לי את המחזור שבנית';
     _cycleExplainHistory = [
-      { role: 'user',      content: 'הסבירי לי את המחזור שבנית' },
+      { role: 'user',      content: userMsg },
       { role: 'assistant', content: explanation },
     ];
     _renderCycleChat();
