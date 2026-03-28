@@ -330,20 +330,23 @@ async function openAIBuildMorning() {
   } catch(err) { showToast(err.message, 'error'); }
 }
 
-/** Open cycle type selector before building */
+/** Open free-text cycle goal input before building */
 function openAIBuildCycle() {
   if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
   if (!DB.getProducts().filter(p=>p.active).length) { showToast('הוסיפי מוצרים תחילה', 'error'); return; }
-  const modal = document.getElementById('modal-cycle-type');
-  if (modal) modal.classList.remove('hidden');
+  const modal  = document.getElementById('modal-cycle-type');
+  const inputEl= document.getElementById('cycle-goal-input');
+  if (modal)  modal.classList.remove('hidden');
+  if (inputEl){ inputEl.value = ''; inputEl.focus(); }
 }
 
-/** Called after user picks a cycle type */
-async function buildCycleWithType(cycleType) {
+/** Called when user submits their cycle goal */
+async function buildCycleWithGoal() {
+  const goal = document.getElementById('cycle-goal-input')?.value.trim() || '';
   closeModal('modal-cycle-type');
   showToast('בונה מחזור טיפוח... ✦');
   try {
-    const cycle = await AI.buildNightCycle(cycleType);
+    const cycle = await AI.buildNightCycle(goal);
     DB.updateRoutine('night', { cycle, currentDayIndex: 0 });
     renderRoutines();
     const card = document.getElementById('card-night');
@@ -456,8 +459,11 @@ async function openMorningExplanation() {
 }
 
 
-/** Show product usage instructions in modal */
-function openStepInstructions(productId) {
+/**
+ * Show product application instructions in modal.
+ * Uses AI if apiKey available, otherwise shows category defaults.
+ */
+async function openStepInstructions(productId) {
   const product = DB.getProducts().find(p => p.id === productId);
   if (!product) return;
   const modal  = document.getElementById('modal-step-instructions');
@@ -466,45 +472,79 @@ function openStepInstructions(productId) {
   if (!modal || !bodyEl) return;
 
   const cat = CATEGORIES[product.category] || CATEGORIES.other;
-  if (titleEl) titleEl.textContent = `${product.brand ? product.brand+' · ' : ''}${product.name}`;
+  if (titleEl) titleEl.textContent = `${product.brand ? product.brand + ' · ' : ''}${product.name}`;
+  modal.classList.remove('hidden');
 
-  // Default instructions by category if no note
-  const defaultInstructions = {
-    cleanser:    'מרחי על עור לח, עסי בעדינות בתנועות סיבוביות, שטפי היטב. אל תשפשפי חזק.',
-    toner:       'מרחי על כותנה או ידיים נקיות מיד לאחר הניקוי. טפטפי על כל הפנים בתנועות עדינות.',
-    exfoliant:   'הורידי מסכה על עור יבש לאחר ניקוי. השאירי 5-10 דקות, שטפי. פעם עד פעמיים בשבוע.',
-    serum:       'הורידי 2-3 טיפות על עור נקי, מרחי מהמרכז כלפי חוץ לפני קרם הלחות.',
-    eye_care:    'הניחי כמות קטנה על קצה האצבע, טפטפי בעדינות סביב העין. אל תמשחי.',
-    moisturizer: 'מרחי שכבה אחידה על פנים וצוואר לאחר הסרום בעוד העור עדיין מעט לח.',
-    spf:         'הורידי כמות נדיבה (כ-1/4 כפית לפנים) כשלב האחרון בבוקר. חידשי כל שעתיים בחשיפה.',
-    retinoid:    'הורידי כמות קטנה (פולי אורז) על עור יבש לחלוטין. שלבי בהדרגה, התחילי פעם בשבוע.',
-    treatment:   'הורידי על אזורים ספציפיים לאחר ניקוי וטונר. עיני בהוראות היצרן.',
-    mask:        'מרחי שכבה אחידה על עור נקי, המתיני לפי ההוראות, שטפי היטב.',
-    oil:         'הורידי 2-3 טיפות, חממי בין הכפות וטפחי על הפנים. ניתן לערבב עם קרם לחות.',
-    other:       'עיני בהוראות שעל האריזה להשתמש נכון.',
-  };
+  // Show skeleton immediately
+  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    טוענת הוראות יישום...
+  </div>`;
 
-  const instructions = product.note || defaultInstructions[product.category] || defaultInstructions.other;
-  const warnings     = product.warnings?.length
+  const warningsHtml = product.warnings?.length
     ? `<div class="conflict-warning" style="margin-top:.6rem">
         <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
           <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
         </svg>
-        <span>${product.warnings.join(' · ')}</span>
+        <span>${product.warnings.map(esc).join(' · ')}</span>
       </div>` : '';
 
-  bodyEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem">
-      <span style="font-size:1.2rem">${cat.emoji}</span>
-      <span style="font-size:.78rem;color:var(--latte)">${cat.label}</span>
-    </div>
-    <p style="font-size:.82rem;color:var(--text-dark);line-height:1.7">${esc(instructions)}</p>
-    ${product.ingredients?.length ? `<p style="font-size:.68rem;color:var(--text-soft);margin-top:.5rem;line-height:1.5">
-      <span style="font-weight:600">רכיבים עיקריים:</span> ${product.ingredients.slice(0,5).map(esc).join(' · ')}
-    </p>` : ''}
-    ${warnings}`;
+  const ingredientsHtml = product.ingredients?.length
+    ? `<p style="font-size:.68rem;color:var(--text-soft);margin-top:.6rem;line-height:1.5;padding-top:.5rem;border-top:1px solid var(--border)">
+        <span style="font-weight:600">רכיבים עיקריים:</span> ${product.ingredients.slice(0,5).map(esc).join(' · ')}
+       </p>` : '';
 
-  modal.classList.remove('hidden');
+  // If API available — get specific instructions from AI
+  if (DB.getSettings().apiKey) {
+    try {
+      const profile = DB.getProfile() || {};
+      const skinLabel = { normal:'נורמלי', dry:'יבש', oily:'שמן', combination:'מעורב', sensitive:'רגיש' }[profile.skinType] || '';
+      const prompt = `תני הוראות יישום ספציפיות ומעשיות למוצר "${product.brand ? product.brand+' ' : ''}${product.name}" (קטגוריה: ${product.category}).
+${skinLabel ? `סוג עור: ${skinLabel}` : ''}
+${product.ingredients?.length ? `רכיבים פעילים: ${product.ingredients.slice(0,4).join(', ')}` : ''}
+
+כתבי 3-4 משפטים קצרים ומדויקים בעברית:
+- כמות לשימוש
+- שלב היישום בשגרה (לפני/אחרי מה)
+- טכניקת הריבוי על הפנים
+- הערה חשובה אם יש (הדרגתיות, הימנעות, SPF אחרי וכו')
+
+כתבי רק הוראות, ללא כותרות.`;
+      const reply = await AI.chat([{ role: 'user', content: prompt }]);
+      bodyEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem">
+          <span style="font-size:1.1rem">${cat.emoji}</span>
+          <span style="font-size:.75rem;color:var(--latte)">${cat.label}</span>
+        </div>
+        <div style="font-size:.81rem;color:var(--text-dark);line-height:1.7">${_formatAI(reply)}</div>
+        ${ingredientsHtml}${warningsHtml}`;
+      return;
+    } catch { /* fall through to defaults */ }
+  }
+
+  // Fallback: category defaults
+  const defaults = {
+    cleanser:    'מרחי על עור לח, עסי בעדינות בתנועות סיבוביות, שטפי היטב.',
+    toner:       'מרחי על כותנה או כפות הידיים מיד לאחר הניקוי, טפטפי על כל הפנים.',
+    exfoliant:   'הורידי על עור יבש לאחר ניקוי. השאירי 5-10 דקות, שטפי. 1-2 פעמים בשבוע.',
+    serum:       'הורידי 2-3 טיפות על עור נקי, מרחי מהמרכז כלפי חוץ לפני קרם הלחות.',
+    eye_care:    'הניחי כמות קטנה על קצה אצבע הטבעת, טפטפי בעדינות מתחת לעין בתנועה קלה.',
+    moisturizer: 'מרחי שכבה אחידה על פנים וצוואר לאחר הסרום בעוד העור עדיין מעט לח.',
+    spf:         'הורידי כמות נדיבה (כ-1/4 כפית) כשלב האחרון בבוקר. חידשי כל שעתיים בחשיפה.',
+    retinoid:    'כמות קטנה (גודל פולי אורז) על עור יבש. שלבי בהדרגה — התחילי פעם בשבוע.',
+    treatment:   'הורידי על אזורים ממוקדים לאחר ניקוי וטונר.',
+    mask:        'מרחי שכבה אחידה על עור נקי, המתיני לפי ההוראות, שטפי היטב.',
+    oil:         'הורידי 2-3 טיפות, חממי בין הכפות וטפחי על הפנים בתנועות עדינות.',
+    other:       'עיני בהוראות שעל האריזה.',
+  };
+  const text = product.note || defaults[product.category] || defaults.other;
+  bodyEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem">
+      <span style="font-size:1.1rem">${cat.emoji}</span>
+      <span style="font-size:.75rem;color:var(--latte)">${cat.label}</span>
+    </div>
+    <p style="font-size:.81rem;color:var(--text-dark);line-height:1.7">${esc(text)}</p>
+    ${ingredientsHtml}${warningsHtml}`;
 }
 
 
