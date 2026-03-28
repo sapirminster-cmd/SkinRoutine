@@ -44,6 +44,7 @@ function _routineCard(routine, products) {
           ? (isMorning ? _morningSteps(routine, products) : _nightCycle(routine, products))
           : _emptyRoutine(routine.id)}
         ${_routineActions(routine.id, hasContent)}
+        ${hasContent ? _routineChatBar(routine.id) : ''}
       </div>
     </div>
   </div>`;
@@ -98,22 +99,23 @@ function _stepHTML(step, routineId, cycleDay, products) {
   const cat       = CATEGORIES[product.category] || CATEGORIES.other;
   const dayParam  = cycleDay !== null ? cycleDay : 'null';
 
-  return `<div class="step${done?' done':''}" id="step-${routineId}-${step.productId}"
-       onclick="toggleStep('${routineId}','${step.productId}',${dayParam})">
-    <div class="step-check">
+  return `<div class="step${done?' done':''}" id="step-${routineId}-${step.productId}">
+    <!-- Check circle: toggles done state -->
+    <div class="step-check" onclick="toggleStep('${routineId}','${step.productId}',${dayParam})" style="cursor:pointer;flex-shrink:0">
       ${done ? `<svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
         <path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/>
       </svg>` : ''}
     </div>
-    <div class="step-info">
+    <!-- Product name: opens instructions -->
+    <div class="step-info" onclick="openStepInstructions('${step.productId}')" style="cursor:pointer;flex:1;min-width:0">
       ${product.brand ? `<span class="step-brand">${esc(product.brand)}</span>` : ''}
-      <span class="step-product">${esc(product.name)}</span>
+      <span class="step-product" style="text-decoration:none">${esc(product.name)}</span>
     </div>
     <span class="product-badge" style="font-size:.6rem;padding:.15rem .4rem;border-radius:4px;background:var(--driftwood);color:var(--text-soft)">
       ${cat.emoji} ${cat.label}
     </span>
     <button class="step-remove" title="הסר"
-            onclick="event.stopPropagation();removeStep('${routineId}','${step.productId}',${dayParam})">
+            onclick="removeStep('${routineId}','${step.productId}',${dayParam})">
       <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
         <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>
       </svg>
@@ -132,21 +134,22 @@ function _emptyRoutine(routineId) {
 
 function _routineActions(routineId, hasContent) {
   const isMorning = routineId === 'morning';
-  const addBtn = `<button class="btn btn-sm" onclick="openAddStepModal('${routineId}')">
-    <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
-    הוסיפי שלב
-  </button>`;
 
   if (isMorning) return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildMorning()">✦ בני עם AI</button>
-    ${addBtn}
     ${hasContent ? `
+      <button class="btn btn-sm" onclick="openMorningExplanation()">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+          <path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180Zm-12-108c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Z"/>
+        </svg>
+        למה נבחרה?
+      </button>
       <button class="btn btn-sm" onclick="resetRoutine('morning')">איפוס</button>
       <button class="btn btn-sm btn-rose" onclick="clearRoutine('morning')" title="מחק את כל השלבים">
         <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
           <path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192Z"/>
         </svg>
-        נקי רוטינה
+        נקי
       </button>` : ''}
   </div>`;
 
@@ -327,19 +330,26 @@ async function openAIBuildMorning() {
   } catch(err) { showToast(err.message, 'error'); }
 }
 
-async function openAIBuildCycle() {
+/** Open cycle type selector before building */
+function openAIBuildCycle() {
   if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
   if (!DB.getProducts().filter(p=>p.active).length) { showToast('הוסיפי מוצרים תחילה', 'error'); return; }
+  const modal = document.getElementById('modal-cycle-type');
+  if (modal) modal.classList.remove('hidden');
+}
+
+/** Called after user picks a cycle type */
+async function buildCycleWithType(cycleType) {
+  closeModal('modal-cycle-type');
   showToast('בונה מחזור טיפוח... ✦');
   try {
-    const cycle = await AI.buildNightCycle();
+    const cycle = await AI.buildNightCycle(cycleType);
     DB.updateRoutine('night', { cycle, currentDayIndex: 0 });
     renderRoutines();
     const card = document.getElementById('card-night');
     const body = document.getElementById('body-night');
     if (card && !card.classList.contains('open')) { card.classList.add('open'); body.classList.add('open'); }
     showToast('מחזור הטיפוח נבנה ✦', 'success');
-    // Auto-open explanation after short delay
     setTimeout(() => openCycleExplanation(), 800);
   } catch(err) { showToast(err.message, 'error'); }
 }
@@ -414,5 +424,164 @@ async function sendCycleChat() {
     loader.remove();
     _cycleExplainHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
     _renderCycleChat();
+  }
+}
+
+/** Open modal with AI explanation of morning routine */
+async function openMorningExplanation() {
+  const modal  = document.getElementById('modal-cycle-explain');
+  const bodyEl = document.getElementById('cycle-explain-body');
+  const titleEl= document.getElementById('cycle-explain-title');
+  if (!modal || !bodyEl) return;
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+
+  if (titleEl) titleEl.textContent = 'למה נבחרה שגרת הבוקר?';
+  modal.classList.remove('hidden');
+  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    AI מנתח את שגרת הבוקר...
+  </div>`;
+  _cycleExplainHistory = [];
+
+  try {
+    const explanation = await AI.explainMorning();
+    _cycleExplainHistory = [
+      { role: 'user',      content: 'הסבירי לי את שגרת הבוקר שבנית' },
+      { role: 'assistant', content: explanation },
+    ];
+    _renderCycleChat();
+  } catch(err) {
+    bodyEl.innerHTML = `<div class="conflict-warning">${err.message}</div>`;
+  }
+}
+
+
+/** Show product usage instructions in modal */
+function openStepInstructions(productId) {
+  const product = DB.getProducts().find(p => p.id === productId);
+  if (!product) return;
+  const modal  = document.getElementById('modal-step-instructions');
+  const titleEl= document.getElementById('si-product-name');
+  const bodyEl = document.getElementById('si-body');
+  if (!modal || !bodyEl) return;
+
+  const cat = CATEGORIES[product.category] || CATEGORIES.other;
+  if (titleEl) titleEl.textContent = `${product.brand ? product.brand+' · ' : ''}${product.name}`;
+
+  // Default instructions by category if no note
+  const defaultInstructions = {
+    cleanser:    'מרחי על עור לח, עסי בעדינות בתנועות סיבוביות, שטפי היטב. אל תשפשפי חזק.',
+    toner:       'מרחי על כותנה או ידיים נקיות מיד לאחר הניקוי. טפטפי על כל הפנים בתנועות עדינות.',
+    exfoliant:   'הורידי מסכה על עור יבש לאחר ניקוי. השאירי 5-10 דקות, שטפי. פעם עד פעמיים בשבוע.',
+    serum:       'הורידי 2-3 טיפות על עור נקי, מרחי מהמרכז כלפי חוץ לפני קרם הלחות.',
+    eye_care:    'הניחי כמות קטנה על קצה האצבע, טפטפי בעדינות סביב העין. אל תמשחי.',
+    moisturizer: 'מרחי שכבה אחידה על פנים וצוואר לאחר הסרום בעוד העור עדיין מעט לח.',
+    spf:         'הורידי כמות נדיבה (כ-1/4 כפית לפנים) כשלב האחרון בבוקר. חידשי כל שעתיים בחשיפה.',
+    retinoid:    'הורידי כמות קטנה (פולי אורז) על עור יבש לחלוטין. שלבי בהדרגה, התחילי פעם בשבוע.',
+    treatment:   'הורידי על אזורים ספציפיים לאחר ניקוי וטונר. עיני בהוראות היצרן.',
+    mask:        'מרחי שכבה אחידה על עור נקי, המתיני לפי ההוראות, שטפי היטב.',
+    oil:         'הורידי 2-3 טיפות, חממי בין הכפות וטפחי על הפנים. ניתן לערבב עם קרם לחות.',
+    other:       'עיני בהוראות שעל האריזה להשתמש נכון.',
+  };
+
+  const instructions = product.note || defaultInstructions[product.category] || defaultInstructions.other;
+  const warnings     = product.warnings?.length
+    ? `<div class="conflict-warning" style="margin-top:.6rem">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
+          <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
+        </svg>
+        <span>${product.warnings.join(' · ')}</span>
+      </div>` : '';
+
+  bodyEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem">
+      <span style="font-size:1.2rem">${cat.emoji}</span>
+      <span style="font-size:.78rem;color:var(--latte)">${cat.label}</span>
+    </div>
+    <p style="font-size:.82rem;color:var(--text-dark);line-height:1.7">${esc(instructions)}</p>
+    ${product.ingredients?.length ? `<p style="font-size:.68rem;color:var(--text-soft);margin-top:.5rem;line-height:1.5">
+      <span style="font-weight:600">רכיבים עיקריים:</span> ${product.ingredients.slice(0,5).map(esc).join(' · ')}
+    </p>` : ''}
+    ${warnings}`;
+
+  modal.classList.remove('hidden');
+}
+
+
+/** Inline chat bar HTML for a routine card */
+function _routineChatBar(routineId) {
+  return `<div style="margin-top:.7rem;border-top:1px solid var(--border);padding-top:.6rem">
+    <div id="rchat-messages-${routineId}" style="max-height:200px;overflow-y:auto;margin-bottom:.4rem"></div>
+    <div class="chat-bar" style="background:rgba(216,207,198,.2);border-radius:var(--r-sm);padding:.3rem .3rem .3rem .4rem">
+      <textarea class="chat-input" id="rchat-input-${routineId}"
+                placeholder="שאלי שאלה על ${routineId === 'morning' ? 'שגרת הבוקר' : 'שגרת הערב'}..."
+                rows="1" style="font-size:.76rem"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRoutineChat('${routineId}')}"></textarea>
+      <button class="chat-send" onclick="sendRoutineChat('${routineId}')" style="width:32px;height:32px">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="14" height="14">
+          <path d="M231.4,44.34a8,8,0,0,0-10.74-3.06L16.4,156.66A8,8,0,0,0,17.89,172l55.64,15.9L224,52.87A8,8,0,0,0,231.4,44.34Zm-180,137.44,63.65-63.64a8,8,0,0,1,11.32,11.31L62.72,193.11ZM192,224a8,8,0,0,1-15.65,2.19L161.5,168.34Z"/>
+        </svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+/** Send a contextual question about a specific routine — stateless, no history saved */
+async function sendRoutineChat(routineId) {
+  const input    = document.getElementById(`rchat-input-${routineId}`);
+  const messagesEl = document.getElementById(`rchat-messages-${routineId}`);
+  const msg      = input?.value?.trim();
+  if (!msg || !messagesEl) return;
+  input.value = '';
+
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+
+  // User bubble
+  const userBubble = document.createElement('div');
+  userBubble.className = 'chat-bubble user';
+  userBubble.style.cssText = 'max-width:100%;margin-bottom:.4rem;font-size:.76rem';
+  userBubble.textContent = msg;
+  messagesEl.appendChild(userBubble);
+
+  // Loading
+  const loader = document.createElement('div');
+  loader.className = 'chat-bubble ai loading';
+  loader.style.marginBottom = '.4rem';
+  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
+  messagesEl.appendChild(loader);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // Build one-shot context — no history stored
+  const routine  = DB.getRoutines().find(r => r.id === routineId);
+  const products = DB.getProducts();
+  const isMorning = routineId === 'morning';
+
+  const routineDesc = isMorning
+    ? (routine?.steps||[]).sort((a,b)=>a.order-b.order)
+        .map(s => products.find(p=>p.id===s.productId)?.name).filter(Boolean).join(' → ')
+    : (routine?.cycle||[]).map((d,i) =>
+        `לילה ${i+1} (${d.label}): ${d.steps.map(s=>products.find(p=>p.id===s.productId)?.name).filter(Boolean).join(', ')}`
+      ).join(' | ');
+
+  const contextMsg = `אתה יועצת טיפוח מומחית. ענה בעברית בצורה קצרה וממוקדת.
+שגרת ${isMorning?'הבוקר':'הערב'} הנוכחית: ${routineDesc || 'ריקה'}
+שאלת המשתמשת: ${msg}`;
+
+  try {
+    const reply = await AI.chat([{ role: 'user', content: contextMsg }]);
+    loader.remove();
+    const aiBubble = document.createElement('div');
+    aiBubble.className = 'chat-bubble ai';
+    aiBubble.style.cssText = 'max-width:100%;margin-bottom:.4rem';
+    aiBubble.innerHTML = _formatAI(reply);
+    messagesEl.appendChild(aiBubble);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  } catch(err) {
+    loader.remove();
+    const errBubble = document.createElement('div');
+    errBubble.className = 'chat-bubble ai';
+    errBubble.style.cssText = 'max-width:100%;margin-bottom:.4rem;background:rgba(192,57,43,.07)';
+    errBubble.textContent = err.message;
+    messagesEl.appendChild(errBubble);
   }
 }
