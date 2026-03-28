@@ -432,7 +432,7 @@
 <div id="modal-cycle-explain" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-cycle-explain')">
   <div class="modal-sheet" style="max-height:85dvh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
-    <p class="modal-title">למה בנית את המחזור כך?</p>
+    <p class="modal-title" id="cycle-explain-title">למה בנית את המחזור כך?</p>
     <span class="modal-sub">שאלי שאלות ממוקדות על הבחירות</span>
 
     <!-- Chat messages -->
@@ -638,6 +638,56 @@
     <p class="modal-title">התאמות עונתיות ✦</p>
     <div id="seasonal-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
     <button class="btn btn-primary" onclick="closeModal('modal-seasonal')" style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Cycle Type Selector -->
+<div id="modal-cycle-type" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-cycle-type')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title">איזה מחזור לבנות?</p>
+    <span class="modal-sub">בחרי את הגישה שמתאימה לעורך ולמוצרים שלך</span>
+
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+      <button onclick="buildCycleWithType('classic')"
+              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
+                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
+        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור קלאסי ✦</div>
+        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">אקספוליאציה → רטינול → 2 לילות התאוששות. לרוב סוגי העור.</div>
+      </button>
+      <button onclick="buildCycleWithType('gentle')"
+              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
+                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
+        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור עדין 🌿</div>
+        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">חומצה קלה + דגש על לחות. לעור רגיש, מתחילות.</div>
+      </button>
+      <button onclick="buildCycleWithType('advanced')"
+              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
+                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
+        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור מתקדם ⚗️</div>
+        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">AHA + BHA + רטינול + התאוששות. לעור מנוסה בלבד.</div>
+      </button>
+      <button onclick="buildCycleWithType('minimal')"
+              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
+                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
+        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור מינימלי 🌙</div>
+        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">טיפול אחד + לילה מנוחה. לעור רגיש מאוד.</div>
+      </button>
+    </div>
+    <button class="btn" onclick="closeModal('modal-cycle-type')"
+            style="margin-top:.8rem;width:100%;justify-content:center">ביטול</button>
+  </div>
+</div>
+
+<!-- Modal: Step Instructions -->
+<div id="modal-step-instructions" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-step-instructions')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="si-product-name">הוראות שימוש</p>
+    <div id="si-body" style="margin-top:.5rem"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-step-instructions')"
+            style="margin-top:.9rem;width:100%;justify-content:center">סגירה</button>
   </div>
 </div>
 
