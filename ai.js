@@ -242,7 +242,11 @@ async function aiChat(messages) {
 }
 
 // ─── 7. Explain cycle ─────────────────────────────────────────
-async function aiExplainCycle() {
+/**
+ * Explain the night cycle.
+ * @param {number|null} focusDayIndex - if set, focus explanation on that day; otherwise explain full cycle
+ */
+async function aiExplainCycle(focusDayIndex = null) {
   const night    = DB.getRoutines().find(r => r.id === 'night');
   const products = DB.getProducts();
   if (!night?.cycle?.length) throw new Error('אין מחזור לנתח');
@@ -259,7 +263,36 @@ async function aiExplainCycle() {
   const allProds = products.filter(p => p.active)
     .map(p => `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`).join(', ');
 
-  const prompt = `הסבירי את בחירות המחזור בעברית, בסגנון ידידותי ומקצועי.
+  let prompt;
+
+  if (focusDayIndex !== null && night.cycle[focusDayIndex]) {
+    // ── Focused mode: specific open day ──────────────────────
+    const day      = night.cycle[focusDayIndex];
+    const dayProds = day.steps
+      .map(s => products.find(p => p.id === s.productId))
+      .filter(Boolean)
+      .map(p => `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`);
+
+    prompt = `הסבירי למה נבחרו המוצרים ב${day.label} (לילה ${focusDayIndex + 1} במחזור).
+
+המחזור כולו לקשר:
+${cycleDesc}
+
+${day.label} ספציפית:
+${dayProds.join(', ') || 'ריק'}
+
+${_profileCtx()}
+
+ענה עם:
+1. למה דווקא ${day.label} — מה תפקיד הלילה הזה במחזור
+2. למה כל מוצר נבחר לסוג הלילה הזה
+3. מה לצפות מבחינת תגובת העור
+4. הערה אחת לשימוש נכון אם יש
+
+כתבי בגוף שני, קצר וממוקד.`;
+  } else {
+    // ── General mode: whole cycle overview ────────────────────
+    prompt = `הסבירי את בחירות המחזור בעברית, בסגנון ידידותי ומקצועי.
 
 המחזור:
 ${cycleDesc}
@@ -273,9 +306,10 @@ ${_profileCtx()}
 1. הלוגיקה הכללית של המחזור
 2. לגבי כל לילה — למה הסדר והמוצרים האלה
 3. אם יש מוצרים שלא נכללו — למה
-4. המלצה לשיפור אם יש
+4. המלצה אחת לשיפור אם יש
 
 כתבי בגוף שני, פסקאות קצרות.`;
+  }
 
   return _aiCall({ messages: [{ role: 'user', content: prompt }] });
 }
