@@ -223,67 +223,46 @@ function checkDailyReset() {
 
 
 // ─── Swipe-down to close modals ───────────────────────────────
-// Attaches to all .modal-sheet elements via event delegation.
-// Drag the sheet down ≥80px → closes the parent .modal-backdrop.
+// Touch must START on the .modal-handle pill → drag down ≥80px → close.
 (function initSwipeToClose() {
-  let startY = 0, startX = 0, dragging = false;
-
-  function getSheet(target) {
-    return target.closest?.('.modal-sheet');
-  }
-
-  function getBackdrop(sheet) {
-    return sheet?.closest?.('.modal-backdrop');
-  }
+  let startY = 0, activeSheet = null;
 
   document.addEventListener('touchstart', e => {
-    const sheet = getSheet(e.target);
-    if (!sheet) return;
-    startY   = e.touches[0].clientY;
-    startX   = e.touches[0].clientX;
-    dragging = false;
-    sheet.style.transition = 'none';
+    if (!e.target.classList.contains('modal-handle')) return;
+    activeSheet = e.target.closest('.modal-sheet');
+    if (!activeSheet) return;
+    startY = e.touches[0].clientY;
+    activeSheet.style.transition = 'none';
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
-    const sheet = getSheet(e.target);
-    if (!sheet) return;
+    if (!activeSheet) return;
     const dy = e.touches[0].clientY - startY;
-    const dx = Math.abs(e.touches[0].clientX - startX);
-    // Only handle clear downward vertical swipes
-    if (dy < 8 || dx > dy * 0.8) return;
-    dragging = true;
+    if (dy <= 0) return;
     const clamped = Math.min(dy, 220);
-    sheet.style.transform = `translateY(${clamped}px)`;
-    sheet.style.opacity   = String(1 - clamped / 320);
+    activeSheet.style.transform = `translateY(${clamped}px)`;
+    activeSheet.style.opacity   = String(1 - clamped / 320);
   }, { passive: true });
 
   document.addEventListener('touchend', e => {
-    const sheet = getSheet(e.target);
-    if (!sheet) return;
+    if (!activeSheet) return;
+    const sheet = activeSheet;
+    activeSheet = null;
     sheet.style.transition = '';
 
-    if (dragging) {
-      const dy = e.changedTouches[0].clientY - startY;
-      if (dy > 80) {
-        // Dismiss: animate out then hide
-        sheet.style.transform = 'translateY(100%)';
-        sheet.style.opacity   = '0';
-        setTimeout(() => {
-          const backdrop = getBackdrop(sheet);
-          if (backdrop) {
-            backdrop.classList.add('hidden');
-          }
-          sheet.style.transform = '';
-          sheet.style.opacity   = '';
-        }, 240);
-      } else {
-        // Snap back
+    const dy = e.changedTouches[0].clientY - startY;
+    if (dy > 80) {
+      sheet.style.transform = 'translateY(100%)';
+      sheet.style.opacity   = '0';
+      setTimeout(() => {
+        sheet.closest('.modal-backdrop')?.classList.add('hidden');
         sheet.style.transform = '';
         sheet.style.opacity   = '';
-      }
+      }, 230);
+    } else {
+      sheet.style.transform = '';
+      sheet.style.opacity   = '';
     }
-    dragging = false;
   }, { passive: true });
 })();
 
