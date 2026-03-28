@@ -99,7 +99,14 @@ function _stepHTML(step, routineId, cycleDay, products) {
   const cat       = CATEGORIES[product.category] || CATEGORIES.other;
   const dayParam  = cycleDay !== null ? cycleDay : 'null';
 
-  return `<div class="step${done?' done':''}" id="step-${routineId}-${step.productId}">
+  return `<div class="step${done?' done':''}" id="step-${routineId}-${step.productId}"
+       ontouchstart="_stepPressStart(event,'${routineId}','${step.productId}',${dayParam})"
+       ontouchend="_stepPressEnd(event)"
+       ontouchcancel="_stepPressEnd(event)"
+       ontouchmove="_stepPressEnd(event)"
+       onmousedown="_stepPressStart(event,'${routineId}','${step.productId}',${dayParam})"
+       onmouseup="_stepPressEnd(event)"
+       onmouseleave="_stepPressEnd(event)">
     <!-- Check circle: toggles done state -->
     <div class="step-check" onclick="toggleStep('${routineId}','${step.productId}',${dayParam})" style="cursor:pointer;flex-shrink:0">
       ${done ? `<svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
@@ -624,4 +631,150 @@ async function sendRoutineChat(routineId) {
     errBubble.textContent = err.message;
     messagesEl.appendChild(errBubble);
   }
+}
+
+
+// ─── Long-press step actions ──────────────────────────────────
+
+let _lpTimer     = null;
+let _lpFired     = false;
+let _lpStartTime = 0;
+
+function _stepPressStart(event, routineId, productId, cycleDay) {
+  _lpFired     = false;
+  _lpStartTime = Date.now();
+  _lpTimer     = setTimeout(() => {
+    _lpFired = true;
+    openStepActionSheet(routineId, productId, cycleDay);
+  }, 480);
+}
+
+function _stepPressEnd(event) {
+  clearTimeout(_lpTimer);
+  _lpTimer = null;
+  // Prevent click propagation if long-press fired
+  if (_lpFired) {
+    event.preventDefault();
+    event.stopPropagation();
+    _lpFired = false;
+  }
+}
+
+/** Bottom action sheet for a step: remove or replace */
+function openStepActionSheet(routineId, productId, cycleDay) {
+  const modal     = document.getElementById('modal-step-actions');
+  const titleEl   = document.getElementById('sa-product-name');
+  const replaceBtn= document.getElementById('sa-replace-btn');
+  const removeBtn = document.getElementById('sa-remove-btn');
+  if (!modal) return;
+
+  const product = DB.getProducts().find(p => p.id === productId);
+  if (titleEl) titleEl.textContent = product?.name || '';
+
+  // Store context on modal for the action handlers
+  modal.dataset.routineId = routineId;
+  modal.dataset.productId = productId;
+  modal.dataset.cycleDay  = cycleDay !== null && cycleDay !== undefined ? cycleDay : '';
+
+  modal.classList.remove('hidden');
+}
+
+function stepActionRemove() {
+  const modal    = document.getElementById('modal-step-actions');
+  const routineId= modal?.dataset.routineId;
+  const productId= modal?.dataset.productId;
+  const cycleDay = modal?.dataset.cycleDay !== '' ? Number(modal.dataset.cycleDay) : null;
+  closeModal('modal-step-actions');
+  removeStep(routineId, productId, cycleDay);
+}
+
+function stepActionReplace() {
+  const modal    = document.getElementById('modal-step-actions');
+  const routineId= modal?.dataset.routineId;
+  const productId= modal?.dataset.productId;
+  const cycleDay = modal?.dataset.cycleDay !== '' ? Number(modal.dataset.cycleDay) : null;
+  closeModal('modal-step-actions');
+  openReplaceStepModal(routineId, productId, cycleDay);
+}
+
+/** Open the add-step modal in "replace" mode */
+function openReplaceStepModal(routineId, oldProductId, cycleDay) {
+  const modal   = document.getElementById('modal-add-step');
+  const titleEl = document.getElementById('mas-title');
+  if (!modal) return;
+
+  const product = DB.getProducts().find(p => p.id === oldProductId);
+  if (titleEl) titleEl.textContent = `החלפת "${product?.name || ''}"`;
+
+  modal.dataset.routineId      = routineId;
+  modal.dataset.cycleDay       = cycleDay !== null && cycleDay !== undefined ? cycleDay : '';
+  modal.dataset.replaceId      = oldProductId;  // ← flag: replace mode
+
+  document.querySelectorAll('#mas-filter-bar .filter-chip').forEach((c,i) => c.classList.toggle('active', i===0));
+  _renderReplaceList(routineId, cycleDay ?? null, 'all', oldProductId);
+  modal.classList.remove('hidden');
+}
+
+/** Render product list excluding current product, in replace mode */
+function _renderReplaceList(routineId, cycleDay, catFilter, excludeId) {
+  const listEl = document.getElementById('mas-product-list');
+  if (!listEl) return;
+
+  const products = DB.getProducts().filter(p =>
+    p.active && p.id !== excludeId &&
+    (catFilter === 'all' || p.category === catFilter)
+  );
+
+  if (!products.length) {
+    listEl.innerHTML = '<p class="text-soft" style="text-align:center;padding:1rem">אין מוצרים זמינים להחלפה</p>';
+    return;
+  }
+
+  const dayParam = cycleDay !== null && cycleDay !== undefined ? cycleDay : 'null';
+  listEl.innerHTML = products.map(p => {
+    const cat = CATEGORIES[p.category] || CATEGORIES.other;
+    return `<div class="product-card" style="margin-bottom:.5rem">
+      <div class="product-info">
+        ${p.brand ? `<span class="product-brand">${esc(p.brand)}</span>` : ''}
+        <span class="product-name">${esc(p.name)}</span>
+        <div class="product-meta"><span class="product-badge badge-both">${cat.emoji} ${cat.label}</span></div>
+      </div>
+      <button class="btn btn-sm btn-primary"
+              onclick="replaceStepFromModal('${routineId}','${p.id}',${dayParam})">
+        החליפי
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/** Replace old product with new product in routine step */
+function replaceStepFromModal(routineId, newProductId, cycleDay) {
+  const day     = (cycleDay === null || cycleDay === 'null') ? null : Number(cycleDay);
+  const modal   = document.getElementById('modal-add-step');
+  const oldId   = modal?.dataset.replaceId;
+  if (!oldId) return;
+
+  const routine = DB.getRoutines().find(r => r.id === routineId);
+  if (!routine) return;
+
+  if (day !== null) {
+    DB.updateRoutine(routineId, {
+      cycle: routine.cycle.map((d, i) =>
+        i !== day ? d : {
+          ...d,
+          steps: d.steps.map(s => s.productId === oldId ? { ...s, productId: newProductId } : s),
+        }
+      ),
+    });
+  } else {
+    DB.updateRoutine(routineId, {
+      steps: routine.steps.map(s => s.productId === oldId ? { ...s, productId: newProductId } : s),
+    });
+  }
+
+  // Clear replace mode flag
+  delete modal.dataset.replaceId;
+  closeModal('modal-add-step');
+  renderRoutines();
+  showToast('המוצר הוחלף ✦', 'success');
 }
