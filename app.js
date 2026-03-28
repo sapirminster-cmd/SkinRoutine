@@ -221,6 +221,72 @@ function checkDailyReset() {
   DB.getRoutines().forEach(r => { if (r.lastReset !== t) DB.updateRoutine(r.id, { lastReset: t }); });
 }
 
+
+// ─── Swipe-down to close modals ───────────────────────────────
+// Attaches to all .modal-sheet elements via event delegation.
+// Drag the sheet down ≥80px → closes the parent .modal-backdrop.
+(function initSwipeToClose() {
+  let startY = 0, startX = 0, dragging = false;
+
+  function getSheet(target) {
+    return target.closest?.('.modal-sheet');
+  }
+
+  function getBackdrop(sheet) {
+    return sheet?.closest?.('.modal-backdrop');
+  }
+
+  document.addEventListener('touchstart', e => {
+    const sheet = getSheet(e.target);
+    if (!sheet) return;
+    startY   = e.touches[0].clientY;
+    startX   = e.touches[0].clientX;
+    dragging = false;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    const sheet = getSheet(e.target);
+    if (!sheet) return;
+    const dy = e.touches[0].clientY - startY;
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    // Only handle clear downward vertical swipes
+    if (dy < 8 || dx > dy * 0.8) return;
+    dragging = true;
+    const clamped = Math.min(dy, 220);
+    sheet.style.transform = `translateY(${clamped}px)`;
+    sheet.style.opacity   = String(1 - clamped / 320);
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const sheet = getSheet(e.target);
+    if (!sheet) return;
+    sheet.style.transition = '';
+
+    if (dragging) {
+      const dy = e.changedTouches[0].clientY - startY;
+      if (dy > 80) {
+        // Dismiss: animate out then hide
+        sheet.style.transform = 'translateY(100%)';
+        sheet.style.opacity   = '0';
+        setTimeout(() => {
+          const backdrop = getBackdrop(sheet);
+          if (backdrop) {
+            backdrop.classList.add('hidden');
+          }
+          sheet.style.transform = '';
+          sheet.style.opacity   = '';
+        }, 240);
+      } else {
+        // Snap back
+        sheet.style.transform = '';
+        sheet.style.opacity   = '';
+      }
+    }
+    dragging = false;
+  }, { passive: true });
+})();
+
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   checkDailyReset();
