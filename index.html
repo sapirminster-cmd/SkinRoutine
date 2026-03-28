@@ -642,41 +642,28 @@
 </div>
 
 
-<!-- Modal: Cycle Type Selector -->
+<!-- Modal: Cycle Goal Input -->
 <div id="modal-cycle-type" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-cycle-type')">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <p class="modal-title">איזה מחזור לבנות?</p>
-    <span class="modal-sub">בחרי את הגישה שמתאימה לעורך ולמוצרים שלך</span>
+    <p class="modal-title">מה את רוצה להשיג?</p>
+    <span class="modal-sub">תארי את המטרה שלך — AI יבנה מחזור מותאם אישית</span>
 
-    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
-      <button onclick="buildCycleWithType('classic')"
-              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
-                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
-        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור קלאסי ✦</div>
-        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">אקספוליאציה → רטינול → 2 לילות התאוששות. לרוב סוגי העור.</div>
-      </button>
-      <button onclick="buildCycleWithType('gentle')"
-              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
-                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
-        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור עדין 🌿</div>
-        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">חומצה קלה + דגש על לחות. לעור רגיש, מתחילות.</div>
-      </button>
-      <button onclick="buildCycleWithType('advanced')"
-              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
-                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
-        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור מתקדם ⚗️</div>
-        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">AHA + BHA + רטינול + התאוששות. לעור מנוסה בלבד.</div>
-      </button>
-      <button onclick="buildCycleWithType('minimal')"
-              style="text-align:right;padding:.8rem .9rem;border-radius:var(--r-sm);
-                     border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer">
-        <div style="font-size:.82rem;font-weight:600;color:var(--text-dark);margin-bottom:.2rem">מחזור מינימלי 🌙</div>
-        <div style="font-size:.72rem;color:var(--text-soft);line-height:1.5">טיפול אחד + לילה מנוחה. לעור רגיש מאוד.</div>
-      </button>
+    <div class="modal-field" style="margin-top:.7rem">
+      <textarea class="modal-input" id="cycle-goal-input" rows="3"
+                placeholder="לדוג׳: רוצה לטפל באקנה ובנקבוביות בלי לייבש את העור. יש לי רטינול ו-AHA...&#10;או: מחזור עדין בלי חומצות חזקות&#10;או: תני לי skin cycling קלאסי"
+                style="resize:none;line-height:1.6"
+                onkeydown="if(event.key==='Enter'&&event.metaKey){buildCycleWithGoal()}"></textarea>
     </div>
-    <button class="btn" onclick="closeModal('modal-cycle-type')"
-            style="margin-top:.8rem;width:100%;justify-content:center">ביטול</button>
+
+    <p class="text-soft" style="font-size:.7rem;margin-bottom:.7rem;line-height:1.5">
+      לא חייבת לכתוב כלום — אם תשאירי ריק, AI יבנה מחזור קלאסי לפי הספרייה שלך.
+    </p>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="buildCycleWithGoal()">בני מחזור ✦</button>
+      <button class="btn" onclick="closeModal('modal-cycle-type')">ביטול</button>
+    </div>
   </div>
 </div>
 
