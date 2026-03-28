@@ -669,9 +669,9 @@ input, select, textarea { font-family: inherit; }
   overflow-y: auto;
 }
 .modal-handle {
-  width: 28px; height: 3px;
-  border-radius: 2px;
-  background: rgba(176,152,144,.4);
+  width: 24px; height: 2px;
+  border-radius: 1px;
+  background: rgba(176,152,144,.25);
   margin: 0 auto .9rem;
   cursor: grab;
   position: relative;
