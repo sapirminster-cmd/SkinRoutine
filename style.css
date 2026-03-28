@@ -669,15 +669,19 @@ input, select, textarea { font-family: inherit; }
   overflow-y: auto;
 }
 .modal-handle {
-  width: 36px; height: 4px;
+  /* Visual pill — small and minimal */
+  width: 32px; height: 4px;
   border-radius: 2px;
   background: var(--border);
   margin: 0 auto .9rem;
-  /* Large touch target — invisible padding around the 4px pill */
-  padding: 14px 40px;
-  box-sizing: content-box;
   cursor: grab;
-  touch-action: none;
+  /* Invisible touch target via pseudo-element — doesn't affect layout */
+  position: relative;
+}
+.modal-handle::before {
+  content: '';
+  position: absolute;
+  inset: -16px -48px;
 }
 .modal-title {
   font-family: 'DanaYad', sans-serif;
