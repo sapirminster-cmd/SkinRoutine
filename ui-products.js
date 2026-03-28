@@ -50,49 +50,109 @@ function _productCard(p, i) {
   const timeCls  = _timeCls(p.timeOfUse);
   const conflicts= _conflicts(p);
   const detail   = p.benefits?.length || p.note || p.ingredients?.length;
+  const cardId   = `pc-${p.id}`;
 
-  return `<div class="product-card${p.active?'':' inactive'}" style="animation-delay:${i*.05}s;flex-direction:column;gap:.5rem">
-    <div style="display:flex;align-items:flex-start;gap:.8rem">
-      <div class="product-info">
-        ${p.brand ? `<span class="product-brand">${esc(p.brand)}</span>` : ''}
-        <span class="product-name">${esc(p.name)}</span>
-        <div class="product-meta">
-          <span class="product-badge ${timeCls}">${cat.emoji} ${cat.label}</span>
-          <span class="product-badge ${timeCls}">${_timeLabel(p.timeOfUse)}</span>
-          ${p.subCat ? `<span class="product-badge" style="background:transparent;border:1px solid var(--border)">${esc(p.subCat)}</span>` : ''}
-          ${p.enriching ? `<span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;color:var(--text-soft)">
-            <span class="ai-thinking-dots"><span></span><span></span><span></span></span>AI מנתח...
+  return `<div class="product-card${p.active?'':' inactive'}"
+               id="${cardId}"
+               style="animation-delay:${i*.05}s;flex-direction:column;gap:0;padding:0;
+                      overflow:hidden;cursor:pointer"
+               onclick="toggleProductCard('${cardId}')">
+
+    <div style="padding:.85rem .9rem;display:flex;flex-direction:column;gap:.45rem">
+
+      <!-- Top row: info + dot + chevron -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem">
+        <div style="flex:1;min-width:0">
+          ${p.brand ? `<span class="product-brand">${esc(p.brand)}</span>` : ''}
+          <span class="product-name">${esc(p.name)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.55rem;flex-shrink:0">
+          ${p.enriching ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--text-soft)">
+            <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
           </span>` : ''}
+          <!-- Status dot: click = toggle active, NOT expand -->
+          <div style="position:relative;display:inline-flex">
+            <button onclick="event.stopPropagation();toggleProductActive('${p.id}')"
+                    title="${p.active ? 'השבת' : 'הפעל'}"
+                    style="width:10px;height:10px;border-radius:50%;border:none;cursor:pointer;padding:0;margin-top:3px;
+                           background:${p.active ? '#6a8f6a' : 'rgba(176,152,144,.45)'};
+                           box-shadow:${p.active ? '0 0 0 2px rgba(106,143,106,.2)' : '0 0 0 2px rgba(176,152,144,.15)'};
+                           transition:transform .15s"
+                    onmouseover="this.style.transform='scale(1.35)'"
+                    onmouseout="this.style.transform='scale(1)'">
+            </button>
+          </div>
+          <!-- Chevron: indicates expand/collapse -->
+          <svg style="width:12px;height:12px;color:var(--latte);flex-shrink:0;margin-top:3px;
+                      transition:transform .3s;transform:rotate(${0}deg)"
+               class="pc-chevron-${p.id}"
+               viewBox="0 0 256 256" fill="currentColor">
+            <path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>
+          </svg>
         </div>
       </div>
-      <div class="product-actions">
-        <button class="btn btn-icon btn-sm" onclick="toggleProductActive('${p.id}')" title="${p.active?'השבת':'הפעל'}">
-          ${p.active
-            ? `<svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></svg>`
-            : `<svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15"><path d="M224,128a96,96,0,1,1-96-96A96.11,96.11,0,0,1,224,128Zm-96,80a80,80,0,1,0-80-80A80.09,80.09,0,0,0,128,208Z"/></svg>`}
-        </button>
-        <button class="btn btn-icon btn-sm" onclick="openEditProductModal('${p.id}')" title="עריכה">
-          <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15"><path d="M227.32,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152a15.86,15.86,0,0,0-4.69,11.31V208a16,16,0,0,0,16,16H216a8,8,0,0,0,0-16H115.32l112-112A16,16,0,0,0,227.32,73.37ZM92.69,208H48V163.31l88-88L180.69,120Z"/></svg>
-        </button>
-        <button class="btn btn-icon btn-sm" onclick="confirmDeleteProduct('${p.id}','${esc(p.name)}')" title="מחיקה">
-          <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192Z"/></svg>
-        </button>
+
+      <!-- Badges -->
+      <div class="product-meta" style="margin-top:0">
+        <span class="product-badge ${timeCls}">${cat.emoji} ${cat.label}</span>
+        <span class="product-badge ${timeCls}">${_timeLabel(p.timeOfUse)}</span>
+        ${p.subCat ? `<span class="product-badge" style="background:transparent;border:1px solid var(--border)">${esc(p.subCat)}</span>` : ''}
       </div>
-    </div>
-    ${detail ? `<div style="padding-top:.4rem;border-top:1px solid var(--border)">
-      ${p.benefits?.length ? `<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem">
-        ${p.benefits.slice(0,3).map(b=>`<span style="font-size:.62rem;padding:.12rem .45rem;border-radius:4px;background:rgba(176,152,144,.12);color:var(--text-soft)">${esc(b)}</span>`).join('')}
+
+      <!-- Detail -->
+      ${detail ? `<div style="padding-top:.4rem;border-top:1px solid var(--border)">
+        ${p.benefits?.length ? `<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem">
+          ${p.benefits.slice(0,3).map(b=>`<span style="font-size:.62rem;padding:.12rem .45rem;border-radius:4px;background:rgba(176,152,144,.12);color:var(--text-soft)">${esc(b)}</span>`).join('')}
+        </div>` : ''}
+        ${p.note ? `<p style="font-size:.72rem;color:var(--text-soft);line-height:1.5">${esc(p.note)}</p>` : ''}
+        ${p.ingredients?.length ? `<p style="font-size:.65rem;color:var(--text-soft);margin-top:.2rem;opacity:.75">${p.ingredients.slice(0,4).map(esc).join(' · ')}</p>` : ''}
       </div>` : ''}
-      ${p.note ? `<p style="font-size:.72rem;color:var(--text-soft);line-height:1.5">${esc(p.note)}</p>` : ''}
-      ${p.ingredients?.length ? `<p style="font-size:.65rem;color:var(--text-soft);margin-top:.2rem;opacity:.75">${p.ingredients.slice(0,4).map(esc).join(' · ')}</p>` : ''}
-    </div>` : ''}
-    ${conflicts.length ? `<div class="conflict-warning">
-      <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
-        <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
-      </svg>
-      <span>${conflicts.join(' · ')}</span>
-    </div>` : ''}
+
+      <!-- Conflict -->
+      ${conflicts.length ? `<div class="conflict-warning" style="margin-top:.2rem">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
+          <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
+        </svg>
+        <span>${conflicts.join(' · ')}</span>
+      </div>` : ''}
+    </div>
+
+    <!-- Action bar — slides open on card tap -->
+    <div id="pa-${p.id}"
+         style="display:flex;border-top:1px solid rgba(176,152,144,.4);
+                background:rgba(176,152,144,.42);
+                max-height:0;overflow:hidden;
+                transition:max-height .3s cubic-bezier(.4,0,.2,1)">
+      <button onclick="event.stopPropagation();openEditProductModal('${p.id}')"
+              style="flex:1;padding:9px 4px;border:none;background:transparent;cursor:pointer;
+                     font-size:.73rem;font-family:'Varela Round',sans-serif;
+                     font-weight:700;color:#4A3F3A;
+                     border-left:1px solid rgba(176,152,144,.35);transition:background .15s"
+              onmouseover="this.style.background='rgba(176,152,144,.25)'"
+              onmouseout="this.style.background='transparent'">
+        עריכה
+      </button>
+      <button onclick="event.stopPropagation();confirmDeleteProduct('${p.id}','${esc(p.name)}')"
+              style="flex:1;padding:9px 4px;border:none;background:transparent;cursor:pointer;
+                     font-size:.73rem;font-family:'Varela Round',sans-serif;
+                     font-weight:700;color:#a93226;transition:background .15s"
+              onmouseover="this.style.background='rgba(192,57,43,.06)'"
+              onmouseout="this.style.background='transparent'">
+        מחיקה
+      </button>
+    </div>
   </div>`;
+}
+
+/** Toggle product card expand/collapse */
+function toggleProductCard(cardId) {
+  const pid      = cardId.replace('pc-', '');
+  const actionEl = document.getElementById(`pa-${pid}`);
+  const chevron  = document.querySelector(`.pc-chevron-${pid}`);
+  if (!actionEl) return;
+  const isOpen = actionEl.style.maxHeight === '48px';
+  actionEl.style.maxHeight = isOpen ? '0' : '48px';
+  if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 function _conflicts(product) {
