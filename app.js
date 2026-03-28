@@ -223,56 +223,85 @@ function checkDailyReset() {
 
 
 // ─── Swipe-down to close modals ───────────────────────────────
-// Trigger zone: touch starts on .modal-handle OR within the top 52px of .modal-sheet.
-// Drag down ≥80px → close with animation.
+// Trigger: .modal-handle OR top 52px of sheet.
+// Physics: velocity-aware — fast flick closes even at <80px.
+// Rubber-band resistance when dragging (feels natural).
 (function initSwipeToClose() {
-  let startY = 0, activeSheet = null;
+  let startY    = 0;
+  let lastY     = 0;
+  let lastTime  = 0;
+  let velocity  = 0;   // px/ms
+  let activeSheet = null;
 
   function isHandleArea(target, sheet) {
-    // Accept touch on the handle element itself (with its padding)
     if (target.closest('.modal-handle')) return true;
-    // Also accept touch in the top 52px of the sheet (captures handle padding area)
     const rect = sheet.getBoundingClientRect();
-    const touchY = startY;
-    return touchY - rect.top < 52;
+    return startY - rect.top < 52;
   }
 
   document.addEventListener('touchstart', e => {
     const sheet = e.target.closest?.('.modal-sheet');
     if (!sheet) return;
-    startY = e.touches[0].clientY;
+    startY   = e.touches[0].clientY;
+    lastY    = startY;
+    lastTime = Date.now();
+    velocity = 0;
     if (!isHandleArea(e.target, sheet)) return;
     activeSheet = sheet;
     activeSheet.style.transition = 'none';
+    activeSheet.style.willChange = 'transform, opacity';
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
     if (!activeSheet) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy <= 0) return;
-    const clamped = Math.min(dy, 220);
-    activeSheet.style.transform = `translateY(${clamped}px)`;
-    activeSheet.style.opacity   = String(1 - clamped / 300);
-  }, { passive: true });
+    const now    = Date.now();
+    const dy     = e.touches[0].clientY - startY;
+    const rawDy  = e.touches[0].clientY - lastY;
+    velocity     = rawDy / Math.max(now - lastTime, 1);
+    lastY        = e.touches[0].clientY;
+    lastTime     = now;
+
+    if (dy <= 0) {
+      activeSheet.style.transform = '';
+      activeSheet.style.opacity   = '1';
+      return;
+    }
+
+    e.preventDefault();
+
+    // Rubber-band: resistance grows as dy increases
+    const resistance = 0.55;
+    const visual     = dy * resistance;
+    activeSheet.style.transform = `translateY(${visual}px)`;
+    activeSheet.style.opacity   = String(Math.max(0, 1 - visual / 280));
+  }, { passive: false });
 
   document.addEventListener('touchend', e => {
     if (!activeSheet) return;
     const sheet = activeSheet;
     activeSheet = null;
-    sheet.style.transition = '';
 
-    const dy = e.changedTouches[0].clientY - startY;
-    if (dy > 80) {
-      sheet.style.transform = 'translateY(100%)';
-      sheet.style.opacity   = '0';
+    const dy        = e.changedTouches[0].clientY - startY;
+    const visual    = dy * 0.55;
+    // Dismiss if dragged far enough OR flicked fast enough
+    const shouldDismiss = visual > 100 || velocity > 0.5;
+
+    sheet.style.willChange = '';
+
+    if (shouldDismiss) {
+      sheet.style.transition = 'transform .22s cubic-bezier(.4,0,1,1), opacity .22s ease';
+      sheet.style.transform  = 'translateY(100%)';
+      sheet.style.opacity    = '0';
       setTimeout(() => {
         sheet.closest('.modal-backdrop')?.classList.add('hidden');
-        sheet.style.transform = '';
-        sheet.style.opacity   = '';
-      }, 230);
+        sheet.style.cssText = '';  // clean up all inline styles
+      }, 220);
     } else {
-      sheet.style.transform = '';
-      sheet.style.opacity   = '';
+      // Spring back with overshoot feel
+      sheet.style.transition = 'transform .35s cubic-bezier(.175,.885,.32,1.275), opacity .25s ease';
+      sheet.style.transform  = '';
+      sheet.style.opacity    = '';
+      setTimeout(() => { sheet.style.transition = ''; }, 360);
     }
   }, { passive: true });
 })();
