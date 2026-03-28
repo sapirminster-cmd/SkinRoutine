@@ -223,15 +223,26 @@ function checkDailyReset() {
 
 
 // ─── Swipe-down to close modals ───────────────────────────────
-// Touch must START on the .modal-handle pill → drag down ≥80px → close.
+// Trigger zone: touch starts on .modal-handle OR within the top 52px of .modal-sheet.
+// Drag down ≥80px → close with animation.
 (function initSwipeToClose() {
   let startY = 0, activeSheet = null;
 
+  function isHandleArea(target, sheet) {
+    // Accept touch on the handle element itself (with its padding)
+    if (target.closest('.modal-handle')) return true;
+    // Also accept touch in the top 52px of the sheet (captures handle padding area)
+    const rect = sheet.getBoundingClientRect();
+    const touchY = startY;
+    return touchY - rect.top < 52;
+  }
+
   document.addEventListener('touchstart', e => {
-    if (!e.target.classList.contains('modal-handle')) return;
-    activeSheet = e.target.closest('.modal-sheet');
-    if (!activeSheet) return;
+    const sheet = e.target.closest?.('.modal-sheet');
+    if (!sheet) return;
     startY = e.touches[0].clientY;
+    if (!isHandleArea(e.target, sheet)) return;
+    activeSheet = sheet;
     activeSheet.style.transition = 'none';
   }, { passive: true });
 
@@ -241,7 +252,7 @@ function checkDailyReset() {
     if (dy <= 0) return;
     const clamped = Math.min(dy, 220);
     activeSheet.style.transform = `translateY(${clamped}px)`;
-    activeSheet.style.opacity   = String(1 - clamped / 320);
+    activeSheet.style.opacity   = String(1 - clamped / 300);
   }, { passive: true });
 
   document.addEventListener('touchend', e => {
