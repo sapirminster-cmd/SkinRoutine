@@ -1,1076 +1,727 @@
-/**
- * ui-products.js — Skin Ritual · Products Tab
- * Owns: CATEGORIES, esc(), scan modal, add-step modal
- */
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F5EDE0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Skin Ritual">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <title>Skin Ritual · שגרת טיפוח</title>
+</head>
+<body>
 
-// ─── Global constants (used by ui-routines.js too) ────────────
-const CATEGORIES = {
-  cleanser:    { label:'קלנזר',      emoji:'🫧' },
-  toner:       { label:'טונר',        emoji:'💦' },
-  exfoliant:   { label:'אקספוליאנט', emoji:'✨' },
-  serum:       { label:'סרום',        emoji:'💎' },
-  eye_care:    { label:'קרם עיניים',  emoji:'👁' },
-  moisturizer: { label:'מוסטורייזר',  emoji:'🌿' },
-  spf:         { label:'קרם הגנה',    emoji:'☀️' },
-  retinoid:    { label:'רטינואיד',    emoji:'🔬' },
-  treatment:   { label:'טיפול',       emoji:'⚗️' },
-  mask:        { label:'מסכה',        emoji:'🎭' },
-  oil:         { label:'שמן',         emoji:'🌾' },
-  other:       { label:'אחר',         emoji:'📦' },
-};
+<!-- ═══ ONBOARDING ═══════════════════════════════════════════ -->
+<div id="onboarding-overlay">
+  <div class="ob-inner">
+    <div class="ob-logo">Skin Ritual</div>
+    <div class="ob-logo-sub">שגרת טיפוח · AI</div>
+    <div class="ob-dots">
+      <div class="ob-dot active"></div>
+      <div class="ob-dot"></div>
+      <div class="ob-dot"></div>
+    </div>
 
-function esc(str) {
-  if (typeof str !== 'string') return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+    <!-- Step 1: Skin Type -->
+    <div class="ob-step active" id="ob-step-1">
+      <div class="ob-step-title">מה סוג העור שלך?</div>
+      <p class="ob-step-sub">כדי שנוכל להתאים את השגרה בצורה מושלמת</p>
+      <div class="ob-skin-grid" id="ob-skin-grid"></div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obNext()">הבא ←</button>
+      </div>
+    </div>
 
-// ─── State ────────────────────────────────────────────────────
-let _productFilter = 'all';
-let _scanImages    = []; // { base64, mimeType, preview }
+    <!-- Step 2: Concerns -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-step-title">קצת עלייך</div>
+      <p class="ob-step-sub">כדי שהמלצות ה-AI יהיו מדויקות</p>
+      <div class="modal-field">
+        <label class="modal-label">גיל (אופציונלי)</label>
+        <input class="modal-input" id="ob-age" type="number" min="13" max="99" placeholder="30">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">דאגות עיקריות</label>
+        <div class="ob-concerns-grid" id="ob-concerns-grid"></div>
+      </div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obNext()">הבא ←</button>
+        <button class="btn" id="ob-back-btn" onclick="obBack()" style="visibility:hidden">← חזרה</button>
+      </div>
+    </div>
 
-// ─── Render ───────────────────────────────────────────────────
-function renderProducts() {
-  const listEl    = document.getElementById('products-list');
-  const consultEl = document.getElementById('library-consult-bar');
-  if (!listEl) return;
+    <!-- Step 3: API Key -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-step-title">הכל מוכן ✦</div>
+      <p class="ob-step-sub">הוסיפי מפתח Anthropic API להפעלת תכונות ה-AI.<br>ניתן לדלג ולהוסיף מאוחר יותר בהגדרות.</p>
+      <div class="modal-field">
+        <label class="modal-label">Anthropic API Key</label>
+        <input class="modal-input" id="ob-api-key" type="password" placeholder="sk-ant-...">
+      </div>
+      <div class="ob-actions">
+        <button class="btn btn-primary" onclick="obComplete()">התחילי ✦</button>
+        <button class="btn" onclick="obBack()">← חזרה</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  const allProducts = DB.getProducts();
-  const filtered    = _filterProducts(allProducts, _productFilter);
 
-  listEl.innerHTML = filtered.length
-    ? filtered.map((p,i) => _productCard(p,i)).join('')
-    : _productsEmpty();
+<!-- ═══ APP ══════════════════════════════════════════════════ -->
+<div id="app">
+  <div class="main-scroll">
 
-  // Show consult bar only when library has 2+ products
-  if (consultEl) consultEl.style.display = allProducts.length >= 2 ? 'flex' : 'none';
-}
+    <!-- TAB: Routines -->
+    <div class="view active" id="view-routines">
+      <div class="page-header">
+        <span class="page-title">שגרת טיפוח</span>
+        <span class="page-title-en" style="font-size:1.2rem;opacity:.6">Skin Ritual</span>
+      </div>
+      <div id="morning-routine-container"></div>
+      <div id="night-routine-container"></div>
+    </div>
 
-function _productCard(p, i) {
-  const cat      = CATEGORIES[p.category] || CATEGORIES.other;
-  const timeCls  = _timeCls(p.timeOfUse);
-  const conflicts= _conflicts(p);
-  const detail   = p.benefits?.length || p.note || p.ingredients?.length;
-  const cardId   = `pc-${p.id}`;
-
-  return `<div class="product-card${p.active?'':' inactive'}"
-               id="${cardId}"
-               style="animation-delay:${i*.05}s;flex-direction:column;gap:0;padding:0;
-                      overflow:hidden;cursor:pointer"
-               onclick="toggleProductCard('${cardId}')">
-
-    <div style="padding:.85rem .9rem;display:flex;flex-direction:column;gap:.45rem">
-
-      <!-- Top row: info + dot + chevron -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem">
-        <div style="flex:1;min-width:0">
-          ${p.brand ? `<span class="product-brand">${esc(p.brand)}</span>` : ''}
-          <span class="product-name">${esc(p.name)}</span>
+    <!-- TAB: Products -->
+    <div class="view" id="view-products">
+      <div class="page-header">
+        <span class="page-title">ספריית מוצרים</span>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="openExamineModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M229.66,218.34l-50.07-50.07A88.11,88.11,0,1,0,168,229.66,87.59,87.59,0,0,0,179.59,218Zm-137-30.46a72,72,0,1,1,51.83,21.87A71.52,71.52,0,0,1,92.66,187.88Zm128.22,38.45a8,8,0,0,1-11.31,0l-27.84-27.83a96.5,96.5,0,0,0,11.31-11.31l27.84,27.83A8,8,0,0,1,220.88,226.33Z"/>
+            </svg>
+            בחני מוצר
+          </button>
+          <button class="btn btn-sm" onclick="openCompareModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M230.14,58.87A8,8,0,0,0,224,56H175.4L151.58,18.35a8,8,0,0,0-13.16,0L114.6,56H32A8,8,0,0,0,24,67.2L56,165.07V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V165.07l32-97.87A8,8,0,0,0,230.14,58.87ZM183.8,72l-9.33,28.49A23.85,23.85,0,0,1,168,99a24,24,0,0,1,0-48,23.85,23.85,0,0,1,6.47.9ZM128,32.65,142.6,56H113.4ZM72,99a23.85,23.85,0,0,1-6.47-.51L56.2,72H81.53A23.85,23.85,0,0,1,88,99.9,24,24,0,0,1,72,99Zm112,101H72V176H184Zm5.49-40H178.78a40,40,0,0,0-101.56,0H66.51l-23.82-72.69A40,40,0,0,0,104,123a39.54,39.54,0,0,0,24-8,39.54,39.54,0,0,0,24,8,40,40,0,0,0,61.31-35.69Z"/>
+            </svg>
+            השוואה
+          </button>
+          <button class="btn btn-sm" onclick="openScanModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+            </svg>
+            סריקה
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+              <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>
+            </svg>
+            הוספה
+          </button>
         </div>
-        <div style="display:flex;align-items:center;gap:.55rem;flex-shrink:0">
-          ${p.enriching ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--text-soft)">
-            <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-          </span>` : ''}
-          <!-- Status dot: click = toggle active, NOT expand -->
-          <div style="position:relative;display:inline-flex">
-            <button onclick="event.stopPropagation();toggleProductActive('${p.id}')"
-                    title="${p.active ? 'השבת' : 'הפעל'}"
-                    style="width:10px;height:10px;border-radius:50%;border:none;cursor:pointer;padding:0;margin-top:3px;
-                           background:${p.active ? '#6a8f6a' : 'rgba(176,152,144,.45)'};
-                           box-shadow:${p.active ? '0 0 0 2px rgba(106,143,106,.2)' : '0 0 0 2px rgba(176,152,144,.15)'};
-                           transition:transform .15s"
-                    onmouseover="this.style.transform='scale(1.35)'"
-                    onmouseout="this.style.transform='scale(1)'">
-            </button>
-          </div>
-          <!-- Chevron: indicates expand/collapse -->
-          <svg style="width:12px;height:12px;color:var(--latte);flex-shrink:0;margin-top:3px;
-                      transition:transform .3s;transform:rotate(${0}deg)"
-               class="pc-chevron-${p.id}"
-               viewBox="0 0 256 256" fill="currentColor">
-            <path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>
+      </div>
+      <div class="filter-bar" id="product-filter-bar">
+        <button class="filter-chip active" onclick="filterProducts('all',this)">הכל</button>
+        <button class="filter-chip" onclick="filterProducts('active',this)">פעיל</button>
+        <button class="filter-chip" onclick="filterProducts('cleanser',this)">קלנזר</button>
+        <button class="filter-chip" onclick="filterProducts('toner',this)">טונר</button>
+        <button class="filter-chip" onclick="filterProducts('serum',this)">סרום</button>
+        <button class="filter-chip" onclick="filterProducts('moisturizer',this)">לחות</button>
+        <button class="filter-chip" onclick="filterProducts('spf',this)">הגנה</button>
+        <button class="filter-chip" onclick="filterProducts('retinoid',this)">רטינול</button>
+        <button class="filter-chip" onclick="filterProducts('exfoliant',this)">אקספוליאנט</button>
+        <button class="filter-chip" onclick="filterProducts('treatment',this)">טיפול</button>
+      </div>
+      <!-- Library consult bar (shown when 2+ products exist) -->
+      <div id="library-consult-bar" style="display:none;align-items:center;justify-content:space-between;
+           background:rgba(176,152,144,.12);border-radius:var(--r-sm);padding:.6rem .85rem;
+           margin-bottom:.8rem;gap:.7rem">
+        <span style="font-size:.75rem;color:var(--text-soft);line-height:1.4">
+          רוצי לדעת אם הספרייה שלך מאוזנת?
+        </span>
+        <button class="btn btn-sm" onclick="openLibraryConsult()" style="white-space:nowrap;flex-shrink:0">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+            <path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180Zm-12-108c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Z"/>
           </svg>
+          ייעוץ ספרייה ✦
+        </button>
+      </div>
+      <div id="products-list"></div>
+    </div>
+
+    <!-- TAB: Analysis -->
+    <div class="view" id="view-analysis">
+      <div class="page-header">
+        <span class="page-title">ניתוח עור</span>
+        <span class="page-title-en" style="font-size:1.2rem;opacity:.6">AI Analysis</span>
+      </div>
+
+      <!-- Status + upload CTA -->
+      <div class="analysis-card">
+        <div class="section-label" style="margin-bottom:.65rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          ניתוח דרמטולוגי AI
         </div>
+        <div id="analysis-status" class="analysis-status-chip" style="margin-bottom:.7rem">טוען...</div>
+        <div id="analysis-hero"></div>
       </div>
 
-      <!-- Badges -->
-      <div class="product-meta" style="margin-top:0">
-        <span class="product-badge ${timeCls}">${cat.emoji} ${cat.label}</span>
-        <span class="product-badge ${timeCls}">${_timeLabel(p.timeOfUse)}</span>
-        ${p.subCat ? `<span class="product-badge" style="background:transparent;border:1px solid var(--border)">${esc(p.subCat)}</span>` : ''}
-      </div>
+      <!-- Seasonal banner (shown when relevant) -->
+      <div id="seasonal-banner" style="display:none;align-items:center;gap:.7rem;
+           background:rgba(176,152,144,.12);border-radius:var(--r-sm);
+           padding:.65rem .85rem;margin-bottom:.7rem;border:1px solid var(--border)"></div>
 
-      <!-- Detail -->
-      ${detail ? `<div style="padding-top:.4rem;border-top:1px solid var(--border)">
-        ${p.benefits?.length ? `<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem">
-          ${p.benefits.slice(0,3).map(b=>`<span style="font-size:.62rem;padding:.12rem .45rem;border-radius:4px;background:rgba(176,152,144,.12);color:var(--text-soft)">${esc(b)}</span>`).join('')}
-        </div>` : ''}
-        ${p.note ? `<p style="font-size:.72rem;color:var(--text-soft);line-height:1.5">${esc(p.note)}</p>` : ''}
-        ${p.ingredients?.length ? `<p style="font-size:.65rem;color:var(--text-soft);margin-top:.2rem;opacity:.75">${p.ingredients.slice(0,4).map(esc).join(' · ')}</p>` : ''}
-      </div>` : ''}
-
-      <!-- Conflict -->
-      ${conflicts.length ? `<div class="conflict-warning" style="margin-top:.2rem">
-        <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
-          <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
+      <!-- Build from scratch button -->
+      <button class="btn" onclick="openBuildFromScratch()"
+              style="width:100%;justify-content:center;margin-bottom:.8rem;border-style:dashed">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
+          <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>
         </svg>
-        <span>${conflicts.join(' · ')}</span>
-      </div>` : ''}
-    </div>
-
-    <!-- Action bar — slides open on card tap -->
-    <div id="pa-${p.id}"
-         style="display:flex;border-top:1px solid rgba(176,152,144,.4);
-                background:rgba(176,152,144,.42);
-                max-height:0;overflow:hidden;
-                transition:max-height .3s cubic-bezier(.4,0,.2,1)">
-      <button onclick="event.stopPropagation();openEditProductModal('${p.id}')"
-              style="flex:1;padding:9px 4px;border:none;background:transparent;cursor:pointer;
-                     font-size:.73rem;font-family:'Varela Round',sans-serif;
-                     font-weight:700;color:#4A3F3A;
-                     border-left:1px solid rgba(176,152,144,.35);transition:background .15s"
-              onmouseover="this.style.background='rgba(176,152,144,.25)'"
-              onmouseout="this.style.background='transparent'">
-        עריכה
+        מה חסר לי? בני תכנית קניות
       </button>
-      <button onclick="event.stopPropagation();confirmDeleteProduct('${p.id}','${esc(p.name)}')"
-              style="flex:1;padding:9px 4px;border:none;background:transparent;cursor:pointer;
-                     font-size:.73rem;font-family:'Varela Round',sans-serif;
-                     font-weight:700;color:#a93226;transition:background .15s"
-              onmouseover="this.style.background='rgba(192,57,43,.06)'"
-              onmouseout="this.style.background='transparent'">
-        מחיקה
-      </button>
-    </div>
-  </div>`;
-}
 
-/** Toggle product card expand/collapse */
-function toggleProductCard(cardId) {
-  const pid      = cardId.replace('pc-', '');
-  const actionEl = document.getElementById(`pa-${pid}`);
-  const chevron  = document.querySelector(`.pc-chevron-${pid}`);
-  if (!actionEl) return;
-  const isOpen = actionEl.style.maxHeight === '48px';
-  actionEl.style.maxHeight = isOpen ? '0' : '48px';
-  if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-}
+      <!-- History -->
+      <div id="analysis-history"></div>
 
-function _conflicts(product) {
-  if (!product.conflicts?.length) return [];
-  const others = DB.getProducts().filter(p => p.active && p.id !== product.id);
-  const w = [];
-  product.conflicts.forEach(c => {
-    const found = others.find(p =>
-      p.category === c ||
-      p.name?.toLowerCase().includes(c.toLowerCase()) ||
-      p.ingredients?.some(i => i.toLowerCase().includes(c.toLowerCase()))
-    );
-    if (found) w.push(`לא לשלב עם ${esc(found.name)}`);
-  });
-  return [...new Set(w)];
-}
-
-function _filterProducts(products, f) {
-  if (f === 'all')     return products;
-  if (f === 'active')  return products.filter(p => p.active);
-  if (f === 'inactive')return products.filter(p => !p.active);
-  return products.filter(p => p.category === f);
-}
-
-function _timeLabel(t) {
-  if (!t?.length || (t.includes('morning') && t.includes('night'))) return 'בוקר + ערב';
-  return t.includes('morning') ? 'בוקר' : 'ערב';
-}
-function _timeCls(t) {
-  if (!t?.length || (t.includes('morning') && t.includes('night'))) return 'badge-both';
-  return t.includes('morning') ? 'badge-morning' : 'badge-night';
-}
-
-function _productsEmpty() {
-  return `<div class="empty-state">
-    <svg class="empty-state-icon" viewBox="0 0 256 256" fill="currentColor">
-      <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8Z"/>
-    </svg>
-    <div class="empty-state-title">הספרייה ריקה</div>
-    <p class="empty-state-sub">הוסיפי מוצר ידנית או סרקי תמונה</p>
-  </div>`;
-}
-
-// ─── Filter bar ───────────────────────────────────────────────
-function filterProducts(cat, btn) {
-  _productFilter = cat;
-  document.querySelectorAll('#product-filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  renderProducts();
-}
-
-// ─── Toggle / Delete ──────────────────────────────────────────
-function toggleProductActive(id) {
-  const p = DB.getProducts().find(p => p.id === id);
-  if (!p) return;
-  DB.updateProduct(id, { active: !p.active });
-  renderProducts();
-}
-
-function confirmDeleteProduct(id, name) {
-  if (!confirm(`למחוק את "${name}"?\nיוסר גם מהרוטינות.`)) return;
-  DB.deleteProduct(id);
-  renderProducts();
-  showToast('המוצר נמחק');
-}
-
-// ─── Add / Edit Product Modal ─────────────────────────────────
-function openAddProductModal()    { _openProductModal(null); }
-function openEditProductModal(id) { _openProductModal(id); }
-
-function _openProductModal(id) {
-  const modal = document.getElementById('modal-product');
-  if (!modal) return;
-  modal.dataset.editId = id || '';
-  const el = s => document.getElementById(s);
-
-  if (id) {
-    const p = DB.getProducts().find(p => p.id === id);
-    if (!p) return;
-    el('mp-title').textContent   = 'עריכת מוצר';
-    el('mp-sub').textContent     = p.name;
-    el('mp-brand').value         = p.brand    || '';
-    el('mp-name').value          = p.name     || '';
-    el('mp-category').value      = p.category || '';
-    el('mp-time-morning').checked = p.timeOfUse?.includes('morning') ?? true;
-    el('mp-time-night').checked   = p.timeOfUse?.includes('night')   ?? true;
-  } else {
-    el('mp-title').textContent   = 'מוצר חדש';
-    el('mp-sub').textContent     = 'הוסיפי פרטים — AI יסווג ויעשיר אוטומטית';
-    el('mp-brand').value         = '';
-    el('mp-name').value          = '';
-    el('mp-category').value      = '';
-    el('mp-time-morning').checked = true;
-    el('mp-time-night').checked   = true;
-  }
-
-  el('mp-ai-result').innerHTML = '';
-  modal.classList.remove('hidden');
-  el('mp-name').focus();
-}
-
-function saveProductModal() {
-  const modal  = document.getElementById('modal-product');
-  const editId = modal?.dataset.editId || '';
-  const brand  = document.getElementById('mp-brand').value.trim();
-  const name   = document.getElementById('mp-name').value.trim();
-  const cat    = document.getElementById('mp-category').value;
-  const morning= document.getElementById('mp-time-morning').checked;
-  const night  = document.getElementById('mp-time-night').checked;
-  const nameEl = document.getElementById('mp-name');
-
-  if (!name) { nameEl.classList.add('error'); nameEl.focus(); return; }
-  nameEl.classList.remove('error');
-
-  const timeOfUse = [morning && 'morning', night && 'night'].filter(Boolean);
-  const data = { brand, name, category: cat || 'other', timeOfUse };
-
-  if (editId) {
-    DB.updateProduct(editId, data);
-    closeModal('modal-product');
-    showToast('המוצר עודכן');
-    _runEnrichment(editId);
-  } else {
-    const p = DB.addProduct(data);
-    closeModal('modal-product');
-    showToast('המוצר נוסף — AI מנתח... ✦');
-    _runEnrichment(p.id);
-  }
-  renderProducts();
-}
-
-async function _runEnrichment(productId) {
-  if (!DB.getSettings().apiKey) return;
-  DB.updateProduct(productId, { enriching: true });
-  scheduleRenderProducts();
-  try {
-    await AI.enrichProduct(productId);
-    DB.updateProduct(productId, { enriching: false });
-    scheduleRenderProducts();
-    showToast('ניתוח AI הושלם ✦', 'success');
-  } catch (err) {
-    DB.updateProduct(productId, { enriching: false });
-    scheduleRenderProducts();
-    console.warn('Enrichment:', err.message);
-  }
-}
-
-// ─── Scan Modal ───────────────────────────────────────────────
-function openScanModal() {
-  const modal = document.getElementById('modal-scan');
-  if (!modal) return;
-  _scanImages = [];
-  _renderScanThumbs();
-  document.getElementById('scan-result').innerHTML = '';
-  document.getElementById('scan-file-input').value = '';
-  modal.classList.remove('hidden');
-}
-
-function scanFileSelected(input) {
-  const files = Array.from(input.files || []);
-  if (!files.length) return;
-  document.getElementById('scan-result').innerHTML = '';
-  files.forEach(file => _compressAndAdd(file));
-  input.value = '';
-}
-
-/**
- * Compress image to under 4MB before adding to scan queue.
- * Uses Canvas to resize large images while preserving aspect ratio.
- * @param {File} file
- */
-function _compressAndAdd(file) {
-  const MAX_BYTES = 3.5 * 1024 * 1024; // 3.5MB — safe margin under API 5MB limit
-  const MAX_DIM   = 1600;               // max width or height in pixels
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const original = e.target.result;
-
-    // If already small enough, use as-is
-    const [header, base64] = original.split(',');
-    const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
-    const byteLen  = Math.ceil(base64.length * 3 / 4);
-
-    if (byteLen <= MAX_BYTES) {
-      _scanImages.push({ base64, mimeType: 'image/jpeg', preview: original });
-      _renderScanThumbs();
-      return;
-    }
-
-    // Compress via canvas
-    const img = new Image();
-    img.onload = () => {
-      const canvas  = document.createElement('canvas');
-      let { width, height } = img;
-
-      // Scale down if needed
-      if (width > MAX_DIM || height > MAX_DIM) {
-        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-        width  = Math.round(width  * ratio);
-        height = Math.round(height * ratio);
-      }
-
-      canvas.width  = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-
-      // Try quality 0.85, then 0.7 if still too large
-      let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      if (dataUrl.length * 3 / 4 > MAX_BYTES) {
-        dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      }
-
-      const [h2, b2] = dataUrl.split(',');
-      _scanImages.push({ base64: b2, mimeType: 'image/jpeg', preview: dataUrl });
-      _renderScanThumbs();
-    };
-    img.src = original;
-  };
-  reader.readAsDataURL(file);
-}
-
-function _renderScanThumbs() {
-  const el = document.getElementById('scan-previews');
-  if (!el) return;
-  if (!_scanImages.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
-  el.style.display = 'flex';
-  el.innerHTML = _scanImages.map((img, i) => `
-    <div style="position:relative;flex-shrink:0">
-      <img src="${img.preview}" style="width:72px;height:72px;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--border)">
-      <button onclick="removeScanImage(${i})"
-        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
-               background:var(--text-dark);color:var(--ivory);font-size:10px;
-               display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">✕</button>
-    </div>`).join('');
-}
-
-function removeScanImage(i) {
-  _scanImages.splice(i, 1);
-  _renderScanThumbs();
-  document.getElementById('scan-result').innerHTML = '';
-}
-
-async function runProductScan() {
-  const resultEl = document.getElementById('scan-result');
-  if (!_scanImages.length) { showToast('נא לבחור תמונה תחילה', 'error'); return; }
-  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
-
-  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;justify-content:center;padding:.8rem">
-    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    <span style="font-size:.8rem;color:var(--text-soft)">AI מזהה מוצרים מ-${_scanImages.length} תמונות...</span>
-  </div>`;
-
-  try {
-    const products = await AI.scanProducts(_scanImages);
-    if (!products.length) {
-      resultEl.innerHTML = `<div class="conflict-warning" style="margin-top:.6rem">לא זוהו מוצרים — נסי תמונות ברורות יותר.</div>`;
-      return;
-    }
-    resultEl.innerHTML = _scanResultsHTML(products);
-  } catch (err) {
-    resultEl.innerHTML = `<div class="conflict-warning" style="margin-top:.6rem">${esc(err.message)}</div>`;
-  }
-}
-
-function _scanResultsHTML(products) {
-  const header = `<div style="font-family:'Poiret One',cursive;font-size:.68rem;letter-spacing:.15em;color:var(--text-soft);text-transform:uppercase;margin:.4rem 0 .5rem">
-    זוהו ${products.length} מוצר${products.length !== 1 ? 'ים' : ''}
-  </div>`;
-
-  const cards = products.map((p, i) => {
-    const cat     = CATEGORIES[p.category] || CATEGORIES.other;
-    const dataStr = esc(JSON.stringify(p));
-    return `<div id="scan-card-${i}" style="background:rgba(176,152,144,.1);border-radius:var(--r-sm);padding:.75rem;margin-bottom:.5rem;border:1.5px solid var(--border)">
-      <div style="display:flex;align-items:flex-start;gap:.6rem">
-        <div style="flex:1">
-          ${p.brand ? `<span style="font-family:'Poiret One',cursive;font-size:.68rem;color:var(--text-soft);display:block">${esc(p.brand)}</span>` : ''}
-          <span style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.6px var(--text-dark);font-size:.9rem">${esc(p.name)}</span>
-          <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.3rem">
-            <span class="product-badge badge-both">${cat.emoji} ${cat.label}</span>
-            <span class="product-badge badge-both">${_timeLabel(p.timeOfUse)}</span>
+      <!-- Chat -->
+      <div style="font-family:'Poiret One',cursive;font-size:.65rem;letter-spacing:.18em;
+                  text-transform:uppercase;color:var(--text-soft);margin:.6rem 0 .55rem">
+        יועצת טיפוח AI
+      </div>
+      <div class="chat-container">
+        <div class="chat-messages" id="analysis-chat-messages">
+          <div class="chat-bubble ai">שלום! אני כאן לענות על כל שאלה לגבי טיפוח עור ומוצרים.<br>
+            <span style="font-size:.72rem;opacity:.7">ניתן לצרף תמונות של מוצרים להשוואה 📸</span>
           </div>
-          ${p.note ? `<p style="font-size:.7rem;color:var(--text-soft);margin-top:.3rem;line-height:1.5">${esc(p.note)}</p>` : ''}
         </div>
-        <button id="scan-btn-${i}" class="btn btn-sm btn-primary" style="flex-shrink:0;white-space:nowrap"
-                data-product="${dataStr}"
-                onclick="addScannedProduct(${i})">+ הוסיפי</button>
+
+        <!-- Pending image thumbnails -->
+        <div id="chat-image-previews"
+             style="display:none;gap:.4rem;flex-wrap:wrap;padding:.5rem 0 .3rem;
+                    border-top:1px solid var(--border);margin-top:.3rem"></div>
+
+        <div class="chat-bar">
+          <!-- Camera button -->
+          <label style="display:flex;align-items:center;justify-content:center;
+                        width:36px;height:36px;flex-shrink:0;border-radius:50%;
+                        border:1.5px solid var(--border);cursor:pointer;
+                        color:var(--text-soft);transition:border-color .2s"
+                 title="צרפי תמונת מוצר">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="17" height="17">
+              <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+            </svg>
+            <input type="file" accept="image/*" multiple style="display:none"
+                   onchange="chatImageSelected(this)">
+          </label>
+
+          <textarea class="chat-input" id="analysis-chat-input"
+                    placeholder="שאלי כל דבר, או צרפי תמונת מוצר..." rows="1"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+
+          <button class="chat-send" onclick="sendChat()">
+            <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
+              <path d="M222.4,43.17a8,8,0,0,0-8.1-1.61L22.72,108.84a8,8,0,0,0,.43,15.17L96,143.49V200a8,8,0,0,0,5.06,7.43A7.9,7.9,0,0,0,104,208a8,8,0,0,0,6.26-3L134.3,176l49.42,21.07A8,8,0,0,0,192,198a8,8,0,0,0,7.91-6.8l24-136A8,8,0,0,0,222.4,43.17ZM183.18,175.91l-54.51-23.24L174,111.4a8,8,0,1,0-11.32-11.31l-57.59,57.59L42.72,136.26,205.13,72.79Z"/>
+            </svg>
+          </button>
+        </div>
       </div>
-    </div>`;
-  }).join('');
+    </div>
 
-  const addAll = products.length > 1
-    ? `<button class="btn btn-primary" id="scan-add-all" style="width:100%;justify-content:center;margin-top:.4rem"
-           onclick="addAllScanned(${products.length})">+ הוסיפי את כולם (${products.length})</button>`
-    : '';
+    <!-- TAB: Settings -->
+    <div class="view" id="view-settings">
+      <div class="page-header"><span class="page-title">הגדרות</span></div>
 
-  return header + cards + addAll;
-}
-
-function addScannedProduct(index) {
-  const btn = document.getElementById(`scan-btn-${index}`);
-  if (!btn || btn.disabled) return;
-  const data = JSON.parse(btn.dataset.product.replace(/&quot;/g, '"'));
-  _saveScannedProduct(data);
-  btn.textContent = '✓ נוסף';
-  btn.disabled    = true;
-  btn.classList.remove('btn-primary');
-  renderProducts();
-  showToast(`${data.name} נוסף ✦`, 'success');
-  // Auto-close if all added
-  const allBtns = document.querySelectorAll('[id^="scan-btn-"]');
-  if ([...allBtns].every(b => b.disabled)) setTimeout(() => closeModal('modal-scan'), 600);
-}
-
-function addAllScanned(count) {
-  let added = 0;
-  for (let i = 0; i < count; i++) {
-    const btn = document.getElementById(`scan-btn-${i}`);
-    if (!btn || btn.disabled) continue;
-    const data = JSON.parse(btn.dataset.product.replace(/&quot;/g, '"'));
-    _saveScannedProduct(data);
-    btn.textContent = '✓ נוסף';
-    btn.disabled    = true;
-    btn.classList.remove('btn-primary');
-    added++;
-  }
-  const allBtn = document.getElementById('scan-add-all');
-  if (allBtn) { allBtn.textContent = '✓ כולם נוספו'; allBtn.disabled = true; }
-  renderProducts();
-  showToast(`${added} מוצרים נוספו ✦`, 'success');
-  setTimeout(() => closeModal('modal-scan'), 700);
-}
-
-function _saveScannedProduct(data) {
-  return DB.addProduct({
-    brand: data.brand||'', name: data.name||'',
-    category: data.category||'other', subCat: data.subCat||'',
-    timeOfUse: data.timeOfUse||['morning','night'],
-    ingredients: data.ingredients||[], benefits: data.benefits||[],
-    warnings: data.warnings||[], conflicts: data.conflicts||[],
-    note: data.note||'', active: true,
-  });
-}
-
-// ─── Library Consultation ────────────────────────────────────
-
-async function openLibraryConsult() {
-  const modal  = document.getElementById('modal-library-consult');
-  const bodyEl = document.getElementById('library-consult-body');
-  if (!modal || !bodyEl) return;
-
-  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
-  if (DB.getProducts().filter(p=>p.active).length < 2) {
-    showToast('הוסיפי לפחות 2 מוצרים לייעוץ', 'error'); return;
-  }
-
-  modal.classList.remove('hidden');
-  bodyEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
-    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    AI סורק את הספרייה...
-  </div>`;
-
-  try {
-    const data = await AI.consultLibrary();
-    bodyEl.innerHTML = _buildConsultHTML(data);
-  } catch(err) {
-    const isOverload = err.retryable || err.message?.includes('עמוסים');
-    bodyEl.innerHTML = `<div class="conflict-warning">
-      ${esc(err.message)}
-      ${isOverload ? `<br><br><button onclick="openLibraryConsult()" class="btn btn-sm" style="font-size:.72rem">נסי שוב ↺</button>` : ''}
-    </div>`;
-  }
-}
-
-function _buildConsultHTML(data) {
-  const section = (icon, title, items, renderItem) => {
-    if (!items?.length) return '';
-    return `<div style="margin-bottom:1rem">
-      <div class="section-label" style="margin-bottom:.5rem">${icon} ${title}</div>
-      ${items.map(renderItem).join('')}
-    </div>`;
-  };
-
-  const chip = text => `<span style="display:inline-block;font-size:.68rem;padding:.15rem .5rem;border-radius:4px;background:var(--driftwood);color:var(--text-soft);margin:.15rem">${esc(text)}</span>`;
-
-  const card = (content, color='rgba(176,152,144,.1)') =>
-    `<div style="background:${color};border-radius:var(--r-sm);padding:.65rem .8rem;margin-bottom:.4rem;font-size:.78rem;line-height:1.55;color:var(--text-dark)">${content}</div>`;
-
-  let html = '';
-
-  // Summary
-  if (data.summary) {
-    html += `<div style="font-size:.82rem;line-height:1.65;color:var(--text-dark);margin-bottom:1rem;padding:.7rem;background:rgba(176,152,144,.12);border-radius:var(--r-sm)">${esc(data.summary)}</div>`;
-  }
-
-  // Duplicates
-  html += section('🔄', 'מוצרים דומים / כפולים', data.duplicates, d =>
-    card(`<strong>${d.products.map(esc).join(' + ')}</strong><br><span style="color:var(--text-soft)">${esc(d.reason)}</span>`, 'rgba(255,200,100,.12)')
-  );
-
-  // Missing
-  html += section('➕', 'חסרים לשגרה מיטבית', data.missing, m =>
-    card(`<strong>${esc(m.category)}</strong> — ${esc(m.reason)}<br><span style="color:var(--latte)">${esc(m.suggestion)}</span>`, 'rgba(100,180,100,.08)')
-  );
-
-  // Unnecessary
-  html += section('🗑', 'שווה לשקול להוציא', data.unnecessary, u =>
-    card(`<strong>${esc(u.product)}</strong> — ${esc(u.reason)}`)
-  );
-
-  // Conflicts
-  html += section('⚠️', 'התנגשויות', data.conflicts, c =>
-    card(`<strong>${c.products.map(esc).join(' + ')}</strong><br>${esc(c.reason)}`, 'rgba(192,57,43,.07)')
-  );
-
-  // Tips
-  if (data.tips?.length) {
-    html += `<div class="section-label" style="margin-bottom:.5rem">💡 טיפים</div>`;
-    html += data.tips.map(t => `<div style="font-size:.78rem;color:var(--text-soft);padding:.3rem 0;line-height:1.5">· ${esc(t)}</div>`).join('');
-  }
-
-  if (!html.trim()) html = '<p style="color:var(--text-soft);text-align:center;padding:1rem">הספרייה נראית טובה! אין הערות מיוחדות.</p>';
-
-  return html;
-}
-
-// ─── Add Step Modal (shared with ui-routines.js) ──────────────
-function openAddStepModal(routineId, cycleDay) {
-  const modal   = document.getElementById('modal-add-step');
-  const titleEl = document.getElementById('mas-title');
-  if (!modal) return;
-  if (titleEl) titleEl.textContent = routineId === 'morning' ? 'הוספה לשגרת בוקר' : 'הוספה לשגרת ערב';
-  modal.dataset.routineId = routineId;
-  modal.dataset.cycleDay  = (cycleDay !== undefined && cycleDay !== null) ? cycleDay : '';
-  document.querySelectorAll('#mas-filter-bar .filter-chip').forEach((c,i) => c.classList.toggle('active', i===0));
-  _renderStepList(routineId, cycleDay ?? null, 'all');
-  modal.classList.remove('hidden');
-}
-
-function masFilter(cat, btn) {
-  document.querySelectorAll('#mas-filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  const modal     = document.getElementById('modal-add-step');
-  const routineId = modal?.dataset.routineId;
-  const day       = modal?.dataset.cycleDay !== '' ? Number(modal.dataset.cycleDay) : null;
-  const replaceId = modal?.dataset.replaceId || '';
-  // Delegate to replace list renderer if in replace mode
-  if (replaceId && typeof _renderReplaceList === 'function') {
-    _renderReplaceList(routineId, day, cat, replaceId);
-  } else {
-    _renderStepList(routineId, day, cat);
-  }
-}
-
-function _renderStepList(routineId, cycleDay, catFilter) {
-  const listEl  = document.getElementById('mas-product-list');
-  if (!listEl) return;
-  const routine  = DB.getRoutines().find(r => r.id === routineId);
-  const existing = new Set(
-    (cycleDay !== null && cycleDay !== undefined)
-      ? (routine?.cycle[cycleDay]?.steps || []).map(s => s.productId)
-      : (routine?.steps || []).map(s => s.productId)
-  );
-  const products = DB.getProducts().filter(p =>
-    p.active && (catFilter === 'all' || p.category === catFilter)
-  );
-
-  if (!products.length) {
-    listEl.innerHTML = '<p class="text-soft" style="text-align:center;padding:1rem">אין מוצרים זמינים</p>';
-    return;
-  }
-
-  const dayParam = (cycleDay !== null && cycleDay !== undefined) ? cycleDay : 'null';
-  listEl.innerHTML = products.map(p => {
-    const cat   = CATEGORIES[p.category] || CATEGORIES.other;
-    const added = existing.has(p.id);
-    return `<div class="product-card" style="margin-bottom:.5rem;${added?'opacity:.5':''}">
-      <div class="product-info">
-        ${p.brand ? `<span class="product-brand">${esc(p.brand)}</span>` : ''}
-        <span class="product-name">${esc(p.name)}</span>
-        <div class="product-meta"><span class="product-badge badge-both">${cat.emoji} ${cat.label}</span></div>
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M243.07,92.76,161.14,10.86a16,16,0,0,0-22.63,0L12.69,136.66A16,16,0,0,0,8,147.9V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152a8,8,0,0,0-16,0v56H24V147.9L149.86,22,225,97.1,176,146.1V128a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8h40a8,8,0,0,0,0-16H191.31l51-51A16,16,0,0,0,243.07,92.76Z"/>
+          </svg>
+          Anthropic API
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">API Key</label>
+          <input class="settings-input" id="settings-api-key" type="password" placeholder="sk-ant-...">
+        </div>
       </div>
-      <button class="btn btn-sm${added?'':' btn-primary'}" ${added?'disabled':''}
-              onclick="addStepFromModal('${routineId}','${p.id}',${dayParam})">
-        ${added ? '✓' : '+ הוסיפי'}
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          פרופיל עור
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">סוג עור</label>
+          <div class="skin-type-grid">
+            <button class="skin-type-btn" data-type="normal"      onclick="selectSkinTypeBtn(this)">✨ נורמלי</button>
+            <button class="skin-type-btn" data-type="dry"         onclick="selectSkinTypeBtn(this)">🌵 יבש</button>
+            <button class="skin-type-btn" data-type="oily"        onclick="selectSkinTypeBtn(this)">💧 שמן</button>
+            <button class="skin-type-btn" data-type="combination" onclick="selectSkinTypeBtn(this)">☯ מעורב</button>
+            <button class="skin-type-btn" data-type="sensitive"   onclick="selectSkinTypeBtn(this)">🌸 רגיש</button>
+          </div>
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">גיל</label>
+          <input class="settings-input" id="settings-age" type="number" min="13" max="99" placeholder="30" style="max-width:120px">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+            <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+          </svg>
+          הוראות מותאמות ל-AI
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">הקשר נוסף (אופציונלי)</label>
+          <textarea class="settings-input" id="settings-custom-prompt" rows="3"
+            placeholder="לדוג׳: יש לי רגישות לריח, מעדיפה מוצרים טבעיים..."></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveSettings()" style="width:100%;justify-content:center;margin-bottom:1rem">
+        שמירת הגדרות
       </button>
-    </div>`;
-  }).join('');
-}
 
-function addStepFromModal(routineId, productId, cycleDay) {
-  const day     = (cycleDay === null || cycleDay === 'null') ? null : Number(cycleDay);
-  const routine = DB.getRoutines().find(r => r.id === routineId);
-  if (!routine) return;
-  const step = { productId, order: 999, optional: false, note: '' };
-
-  if (day !== null) {
-    if (routine.cycle[day]?.steps.find(s => s.productId === productId)) return;
-    const cycle = routine.cycle.map((d, i) =>
-      i !== day ? d : { ...d, steps: [...d.steps, { ...step, order: d.steps.length }] }
-    );
-    DB.updateRoutine(routineId, { cycle });
-  } else {
-    if (routine.steps.find(s => s.productId === productId)) return;
-    DB.updateRoutine(routineId, { steps: [...routine.steps, { ...step, order: routine.steps.length }] });
-  }
-
-  closeModal('modal-add-step');
-  renderRoutines();
-  const card = document.getElementById(`card-${routineId}`);
-  const body = document.getElementById(`body-${routineId}`);
-  if (card && !card.classList.contains('open')) { card.classList.add('open'); body.classList.add('open'); }
-}
-
-// ─── Product Comparison ───────────────────────────────────────
-
-/** Selected product IDs for comparison */
-let _compareSelected = new Set();
-let _compareHistory  = [];
-
-function openCompareModal() {
-  const modal = document.getElementById('modal-compare');
-  if (!modal) return;
-  _compareSelected = new Set();
-  _compareHistory  = [];
-  _renderCompareProductList();
-  document.getElementById('compare-goal').value      = '';
-  document.getElementById('compare-free-text').value = '';
-  document.getElementById('compare-chat').innerHTML  = '';
-  modal.classList.remove('hidden');
-}
-
-function _renderCompareProductList() {
-  const listEl = document.getElementById('compare-product-list');
-  if (!listEl) return;
-  const products = DB.getProducts().filter(p => p.active);
-
-  if (!products.length) {
-    listEl.innerHTML = '<p class="text-soft" style="padding:.5rem 0;font-size:.78rem">אין מוצרים בספרייה</p>';
-    return;
-  }
-
-  listEl.innerHTML = products.map(p => {
-    const cat     = CATEGORIES[p.category] || CATEGORIES.other;
-    const checked = _compareSelected.has(p.id);
-    return `<label style="display:flex;align-items:center;gap:.65rem;padding:.5rem .65rem;border-radius:var(--r-sm);cursor:pointer;
-                           background:${checked ? 'var(--driftwood)' : 'transparent'};transition:background .15s"
-                   onclick="toggleCompareProduct('${p.id}')">
-      <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${checked ? 'var(--latte)' : 'var(--border)'};
-                  background:${checked ? 'var(--latte)' : 'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s">
-        ${checked ? '<svg viewBox="0 0 256 256" fill="white" width="11" height="11"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></svg>' : ''}
-      </div>
-      <div style="flex:1;min-width:0">
-        ${p.brand ? `<span style="font-family:'Poiret One',cursive;font-size:.65rem;color:var(--text-soft)">${esc(p.brand)}</span><br>` : ''}
-        <span style="font-size:.8rem;color:var(--text-dark)">${esc(p.name)}</span>
-      </div>
-      <span style="font-size:.65rem;color:var(--text-soft)">${cat.emoji} ${cat.label}</span>
-    </label>`;
-  }).join('');
-}
-
-function toggleCompareProduct(id) {
-  if (_compareSelected.has(id)) {
-    _compareSelected.delete(id);
-  } else {
-    _compareSelected.add(id);
-  }
-  _renderCompareProductList();
-  _updateCompareCount();
-}
-
-function _updateCompareCount() {
-  const countEl = document.getElementById('compare-count');
-  const n = _compareSelected.size;
-  const freeText = document.getElementById('compare-free-text')?.value?.trim().split('\n').filter(Boolean).length || 0;
-  const total = n + freeText;
-  if (countEl) countEl.textContent = total >= 2 ? `${total} מוצרים נבחרו` : total === 1 ? 'בחרי מוצר נוסף' : 'בחרי לפחות 2 מוצרים';
-}
-
-async function runProductComparison() {
-  const chatEl    = document.getElementById('compare-chat');
-  const goal      = document.getElementById('compare-goal')?.value.trim() || '';
-  const freeRaw   = document.getElementById('compare-free-text')?.value.trim() || '';
-  const freeItems = freeRaw.split('\n').map(s => s.trim()).filter(Boolean);
-  const ids       = [..._compareSelected];
-
-  if (ids.length + freeItems.length < 2) {
-    showToast('בחרי לפחות 2 מוצרים להשוואה', 'error'); return;
-  }
-  if (!DB.getSettings().apiKey) {
-    showToast('נא להזין מפתח API בהגדרות', 'error'); return;
-  }
-
-  // Add user message to chat
-  const products   = DB.getProducts();
-  const nameList   = [
-    ...ids.map(id => products.find(p => p.id === id)?.name).filter(Boolean),
-    ...freeItems,
-  ];
-  const userMsg = `השווי: ${nameList.join(' מול ')}${goal ? ' — ' + goal : ''}`;
-  _compareHistory.push({ role: 'user', content: userMsg });
-  _renderCompareChat();
-
-  // Loading
-  const loader = document.createElement('div');
-  loader.className = 'chat-bubble ai loading';
-  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
-  chatEl.appendChild(loader);
-  chatEl.scrollTop = chatEl.scrollHeight;
-
-  try {
-    const reply = await AI.compareProducts(ids, freeItems, goal);
-    _compareHistory.push({ role: 'assistant', content: reply });
-    loader.remove();
-    _renderCompareChat();
-  } catch(err) {
-    loader.remove();
-    const msg = err.retryable || err.message?.includes('עמוסים')
-      ? `${err.message} — <button onclick="runProductComparison()" style="background:none;border:none;cursor:pointer;color:var(--latte);font-size:.75rem;text-decoration:underline">נסי שוב ↺</button>`
-      : `שגיאה: ${err.message}`;
-    _compareHistory.push({ role: 'assistant', content: msg });
-    _renderCompareChat();
-  }
-}
-
-async function sendCompareFollowUp() {
-  const input   = document.getElementById('compare-followup-input');
-  const chatEl  = document.getElementById('compare-chat');
-  const msg     = input?.value?.trim();
-  if (!msg) return;
-  input.value = '';
-
-  _compareHistory.push({ role: 'user', content: msg });
-  _renderCompareChat();
-
-  const loader = document.createElement('div');
-  loader.className = 'chat-bubble ai loading';
-  loader.innerHTML = `<span class="ai-thinking-dots"><span></span><span></span><span></span></span>`;
-  chatEl.appendChild(loader);
-  chatEl.scrollTop = chatEl.scrollHeight;
-
-  try {
-    const reply = await AI.chat(_compareHistory);
-    _compareHistory.push({ role: 'assistant', content: reply });
-    loader.remove();
-    _renderCompareChat();
-  } catch(err) {
-    loader.remove();
-    _compareHistory.push({ role: 'assistant', content: `שגיאה: ${err.message}` });
-    _renderCompareChat();
-  }
-}
-
-function _renderCompareChat() {
-  const chatEl = document.getElementById('compare-chat');
-  if (!chatEl) return;
-  chatEl.innerHTML = _compareHistory.map(m => {
-    const content = m.role === 'assistant' ? _formatAI(m.content) : `<p style="font-size:.79rem;line-height:1.55">${m.content}</p>`;
-    return `<div class="chat-bubble ${m.role === 'assistant' ? 'ai' : 'user'}" style="max-width:100%;margin-bottom:.6rem">${content}</div>`;
-  }).join('');
-  chatEl.scrollTop = chatEl.scrollHeight;
-  const followUpBar = document.getElementById('compare-followup-bar');
-  if (followUpBar) followUpBar.style.display = _compareHistory.length >= 2 ? 'flex' : 'none';
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// F1 + F2 — Examine Product + Analyze Ingredients
-// ═══════════════════════════════════════════════════════════════
-
-let _examineImage = null; // { base64, mimeType, preview }
-
-function openExamineModal() {
-  const modal = document.getElementById('modal-examine');
-  if (!modal) return;
-  _examineImage = null;
-  document.getElementById('examine-preview').style.display = 'none';
-  document.getElementById('examine-preview').src = '';
-  document.getElementById('examine-result').innerHTML = '';
-  document.getElementById('examine-hint').value = '';
-  document.getElementById('examine-file').value = '';
-  // Reset tabs
-  document.querySelectorAll('.examine-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  document.querySelectorAll('.examine-panel').forEach((p,i) => p.style.display = i===0 ? 'block' : 'none');
-  modal.classList.remove('hidden');
-}
-
-function switchExamineTab(tab, el) {
-  document.querySelectorAll('.examine-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('examine-panel-product').style.display    = tab === 'product'     ? 'block' : 'none';
-  document.getElementById('examine-panel-ingredients').style.display = tab === 'ingredients' ? 'block' : 'none';
-  // Reset result on tab switch
-  document.getElementById('examine-result').innerHTML = '';
-}
-
-function examineFileSelected(input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  document.getElementById('examine-result').innerHTML = '';
-  const reader = new FileReader();
-  reader.onload = e => {
-    const MAX = 3.5 * 1024 * 1024;
-    const [header, base64] = e.target.result.split(',');
-    const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
-    const store = (b64, mime, url) => {
-      _examineImage = { base64: b64, mimeType: mime, preview: url };
-      const prev = document.getElementById('examine-preview');
-      prev.src = url; prev.style.display = 'block';
-    };
-    if (Math.ceil(base64.length * 3/4) <= MAX) { store(base64, mimeType, e.target.result); return; }
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      const MAX_DIM = 1400;
-      if (w > MAX_DIM || h > MAX_DIM) { const r = Math.min(MAX_DIM/w, MAX_DIM/h); w=Math.round(w*r); h=Math.round(h*r); }
-      c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
-      let url = c.toDataURL('image/jpeg', 0.82);
-      if (url.length*3/4 > MAX) url = c.toDataURL('image/jpeg', 0.65);
-      const [h2,b2] = url.split(',');
-      store(b2, 'image/jpeg', url);
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-async function runExamineProduct() {
-  const resultEl = document.getElementById('examine-result');
-  if (!_examineImage) { showToast('נא לבחור תמונה', 'error'); return; }
-  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API', 'error'); return; }
-  const hint = document.getElementById('examine-hint')?.value.trim() || '';
-
-  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
-    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    בוחנת את המוצר...
-  </div>`;
-
-  try {
-    const data = await AI.examineProduct(_examineImage.base64, _examineImage.mimeType, hint);
-    resultEl.innerHTML = _examineResultHTML(data);
-    resultEl.dataset.examineJson = JSON.stringify(data);
-  } catch(err) {
-    const retry = err.retryable || err.message?.includes('עמוסים');
-    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runExamineProduct()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
-  }
-}
-
-async function runAnalyzeIngredients() {
-  const resultEl = document.getElementById('examine-result');
-  if (!_examineImage) { showToast('נא לבחור תמונה של התווית', 'error'); return; }
-  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API', 'error'); return; }
-
-  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 0;color:var(--text-soft);font-size:.8rem">
-    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
-    מנתחת רכיבים...
-  </div>`;
-
-  try {
-    const data = await AI.analyzeIngredients(_examineImage.base64, _examineImage.mimeType);
-    resultEl.innerHTML = _ingredientsResultHTML(data);
-  } catch(err) {
-    const retry = err.retryable || err.message?.includes('עמוסים');
-    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runAnalyzeIngredients()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
-  }
-}
-
-function _examineResultHTML(d) {
-  if (!d) return '';
-  const score = d.fitScore || 0;
-  const scoreCls = score >= 75 ? '#6a8f6a' : score >= 50 ? 'var(--latte)' : '#c0392b';
-  const verdictEmoji = { buy: '✓ קני!', skip: '✗ דלגי', maybe: '~ אולי' }[d.verdict] || '';
-  const verdictBg    = { buy: 'rgba(100,180,100,.12)', skip: 'rgba(192,57,43,.08)', maybe: 'rgba(255,200,100,.12)' }[d.verdict] || 'var(--driftwood)';
-  const verdictColor = { buy: '#6a8f6a', skip: '#c0392b', maybe: '#8B6914' }[d.verdict] || 'var(--text-soft)';
-  const flagEmoji    = { good: '✓', caution: '⚠', avoid: '✗', neutral: '·' };
-  const flagColor    = { good: '#6a8f6a', caution: '#8B6914', avoid: '#c0392b', neutral: 'var(--text-soft)' };
-
-  let h = '';
-
-  // Header: identified product + score + verdict
-  h += `<div style="display:flex;align-items:flex-start;gap:.8rem;margin-bottom:.85rem;padding:.75rem;background:rgba(176,152,144,.1);border-radius:var(--r-sm)">
-    <div style="text-align:center;flex-shrink:0">
-      <div style="font-size:1.6rem;font-weight:700;color:${scoreCls};line-height:1">${score}</div>
-      <div style="font-size:.58rem;color:var(--text-soft)">התאמה</div>
-    </div>
-    <div style="flex:1;min-width:0">
-      ${d.identified?.brand ? `<div style="font-family:'Poiret One',cursive;font-size:.68rem;color:var(--text-soft)">${esc(d.identified.brand)}</div>` : ''}
-      ${d.identified?.name  ? `<div style="font-size:.85rem;font-weight:600;color:var(--text-dark)">${esc(d.identified.name)}</div>` : ''}
-      <div style="font-size:.7rem;color:var(--latte);margin-top:.15rem">${esc(d.fitLabel||'')} · ${esc(d.skinCompatibility||'')}</div>
-    </div>
-    <div style="padding:.3rem .65rem;border-radius:20px;background:${verdictBg};color:${verdictColor};font-size:.75rem;font-weight:600;flex-shrink:0">
-      ${verdictEmoji}
-    </div>
-  </div>`;
-
-  // Verdict reason
-  if (d.verdictReason) h += `<p style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.7rem;padding:.55rem .7rem;border-radius:var(--r-sm);background:${verdictBg}">${esc(d.verdictReason)}</p>`;
-
-  // Pros + Cons
-  if (d.pros?.length || d.cons?.length) {
-    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.7rem">`;
-    if (d.pros?.length) h += `<div style="background:rgba(100,180,100,.08);border-radius:var(--r-sm);padding:.5rem .6rem">
-      <div style="font-size:.62rem;color:#6a8f6a;font-weight:600;margin-bottom:.25rem">✓ יתרונות</div>
-      ${d.pros.map(p=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.5">· ${esc(p)}</div>`).join('')}
-    </div>`;
-    if (d.cons?.length) h += `<div style="background:rgba(192,57,43,.05);border-radius:var(--r-sm);padding:.5rem .6rem">
-      <div style="font-size:.62rem;color:#c0392b;font-weight:600;margin-bottom:.25rem">⚠ חסרונות</div>
-      ${d.cons.map(c=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.5">· ${esc(c)}</div>`).join('')}
-    </div>`;
-    h += '</div>';
-  }
-
-  // Conflicts + duplicates
-  if (d.conflicts?.filter(c=>c.product).length) {
-    h += `<div class="conflict-warning" style="margin-bottom:.5rem">
-      <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13" style="flex-shrink:0">
-        <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/>
-      </svg>
-      <span>${d.conflicts.filter(c=>c.product).map(c=>`מתנגש עם ${esc(c.product)}: ${esc(c.reason)}`).join(' · ')}</span>
-    </div>`;
-  }
-  if (d.duplicates?.filter(c=>c.product).length) {
-    h += `<div style="font-size:.74rem;color:var(--latte);padding:.4rem .6rem;background:rgba(176,152,144,.12);border-radius:var(--r-sm);margin-bottom:.5rem">
-      דומה ל: ${d.duplicates.filter(c=>c.product).map(c=>`${esc(c.product)}`).join(', ')}
-    </div>`;
-  }
-
-  // Placement
-  if (d.routinePlacement?.time) {
-    const timeLabel = { morning: 'בוקר', night: 'ערב', both: 'בוקר + ערב' }[d.routinePlacement.time] || d.routinePlacement.time;
-    h += `<div style="font-size:.72rem;color:var(--text-soft);padding:.35rem .6rem;background:var(--driftwood);border-radius:var(--r-sm);margin-bottom:.6rem">
-      📍 ${timeLabel}${d.routinePlacement.after ? ` · אחרי ${esc(d.routinePlacement.after)}` : ''}${d.routinePlacement.before ? ` · לפני ${esc(d.routinePlacement.before)}` : ''}
-    </div>`;
-  }
-
-  // Key ingredients
-  if (d.keyIngredients?.length) {
-    h += `<div class="section-label" style="margin-bottom:.4rem">רכיבים מרכזיים</div>`;
-    h += `<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.7rem">`;
-    h += d.keyIngredients.map(i => `<span style="font-size:.65rem;padding:.15rem .5rem;border-radius:4px;
-      background:${{ good:'rgba(100,180,100,.12)', caution:'rgba(255,200,100,.15)', avoid:'rgba(192,57,43,.1)', neutral:'rgba(176,152,144,.12)' }[i.flag]||'var(--driftwood)'};
-      color:${{ good:'#6a8f6a', caution:'#8B6914', avoid:'#c0392b', neutral:'var(--text-soft)' }[i.flag]||'var(--text-soft)'}">
-      ${flagEmoji[i.flag]||''} ${esc(i.name)}${i.benefit ? ` — ${esc(i.benefit)}` : ''}
-    </span>`).join('');
-    h += '</div>';
-  }
-
-  // Add to library button
-  if (d.identified?.name && d.verdict !== 'skip') {
-    const prod = JSON.stringify({ brand: d.identified.brand||'', name: d.identified.name, category: d.identified.category||'other', subCat: d.identified.subCat||'', ingredients: (d.keyIngredients||[]).map(i=>i.name), benefits: d.pros||[], warnings: d.cons||[] });
-    h += `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:.3rem"
-      onclick='addExaminedToLibrary(${prod.replace(/'/g,"&#39;")})'>+ הוסיפי לספרייה</button>`;
-  }
-
-  return h;
-}
-
-function _ingredientsResultHTML(d) {
-  if (!d) return '';
-  const ratingLabel = { clean:'נקי ✓', mostly_clean:'נקי ברובו', mixed:'מעורב', concerning:'מעורר חשש' }[d.overallRating] || '';
-  const ratingBg    = { clean:'rgba(100,180,100,.1)', mostly_clean:'rgba(100,180,100,.07)', mixed:'rgba(255,200,100,.1)', concerning:'rgba(192,57,43,.08)' }[d.overallRating] || 'var(--driftwood)';
-  const ratingColor = { clean:'#6a8f6a', mostly_clean:'#6a8f6a', mixed:'#8B6914', concerning:'#c0392b' }[d.overallRating] || 'var(--text-soft)';
-  const flagColor   = { good:'#6a8f6a', neutral:'var(--text-soft)', caution:'#8B6914', avoid:'#c0392b' };
-  const flagBg      = { good:'rgba(100,180,100,.1)', neutral:'rgba(176,152,144,.1)', caution:'rgba(255,200,100,.12)', avoid:'rgba(192,57,43,.08)' };
-  const flagLabel   = { good:'✓', neutral:'·', caution:'⚠', avoid:'✗' };
-
-  let h = '';
-
-  // Summary header
-  h += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;padding:.6rem .75rem;background:${ratingBg};border-radius:var(--r-sm)">
-    <div>
-      ${d.productGuess ? `<div style="font-size:.68rem;color:var(--text-soft);margin-bottom:.15rem">${esc(d.productGuess)}</div>` : ''}
-      <div style="font-size:.78rem;color:var(--text-dark);line-height:1.5">${esc(d.summary||'')}</div>
-    </div>
-    <div style="font-size:.72rem;font-weight:600;color:${ratingColor};flex-shrink:0;margin-right:.6rem">${ratingLabel}</div>
-  </div>`;
-
-  // Highlights + warnings
-  if (d.highlights?.length || d.warnings?.length) {
-    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.7rem">`;
-    if (d.highlights?.length) h += `<div style="background:rgba(100,180,100,.07);border-radius:var(--r-sm);padding:.5rem .6rem">
-      <div style="font-size:.6rem;color:#6a8f6a;font-weight:600;margin-bottom:.25rem">★ בולטים</div>
-      ${d.highlights.map(i=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.4">· ${esc(i)}</div>`).join('')}
-    </div>`;
-    if (d.warnings?.filter(Boolean).length) h += `<div style="background:rgba(192,57,43,.06);border-radius:var(--r-sm);padding:.5rem .6rem">
-      <div style="font-size:.6rem;color:#c0392b;font-weight:600;margin-bottom:.25rem">⚠ לשים לב</div>
-      ${d.warnings.filter(Boolean).map(w=>`<div style="font-size:.7rem;color:var(--text-dark);line-height:1.4">· ${esc(w)}</div>`).join('')}
-    </div>`;
-    h += '</div>';
-  }
-
-  // Ingredients table
-  if (d.ingredients?.length) {
-    h += `<div class="section-label" style="margin-bottom:.4rem">רכיבים</div>`;
-    h += d.ingredients.map(i => `
-      <div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem .5rem;border-radius:6px;margin-bottom:.25rem;background:${flagBg[i.flag]||'rgba(176,152,144,.07)'}">
-        <span style="font-size:.65rem;color:${flagColor[i.flag]};font-weight:700;flex-shrink:0;min-width:1rem;margin-top:.1rem">${flagLabel[i.flag]||'·'}</span>
-        <div style="flex:1;min-width:0">
-          <span style="font-size:.75rem;color:var(--text-dark);font-weight:600">${esc(i.name)}</span>
-          ${i.role ? `<span style="font-size:.68rem;color:var(--text-soft)"> — ${esc(i.role)}</span>` : ''}
-          ${i.note ? `<div style="font-size:.65rem;color:${flagColor[i.flag]};margin-top:.08rem">${esc(i.note)}</div>` : ''}
+      <div class="settings-section">
+        <div class="section-label" style="margin-bottom:.75rem">גיבוי נתונים</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn" onclick="exportData()">ייצוא</button>
+          <button class="btn" onclick="importData()">ייבוא</button>
+          <button class="btn btn-rose" onclick="clearAllData()" style="margin-right:auto">מחיקת כל הנתונים</button>
         </div>
-      </div>`).join('');
-  }
+      </div>
 
-  return h;
-}
+      <p class="text-soft" style="text-align:center;margin-top:1.5rem;font-size:.65rem">Skin Ritual v2.0</p>
+    </div>
 
-function addExaminedToLibrary(data) {
-  const product = DB.addProduct({
-    brand: data.brand||'', name: data.name||'',
-    category: data.category||'other', subCat: data.subCat||'',
-    timeOfUse: ['morning','night'], ingredients: data.ingredients||[],
-    benefits: data.benefits||[], warnings: data.warnings||[], active: true,
-  });
-  closeModal('modal-examine');
-  renderProducts();
-  showToast(`${product.name} נוסף לספרייה ✦`, 'success');
-  if (DB.getSettings().apiKey) _runEnrichment(product.id);
-}
+  </div><!-- /main-scroll -->
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-routines" onclick="showTab('routines')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-52-56a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h44A8,8,0,0,1,148,160Zm8-32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h52A8,8,0,0,1,156,128Z"/>
+      </svg>
+      <span class="nav-label">שגרות</span>
+    </button>
+    <button class="nav-btn" id="nav-products" onclick="showTab('products')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+      </svg>
+      <span class="nav-label">מוצרים</span>
+    </button>
+    <button class="nav-btn" id="nav-analysis" onclick="showTab('analysis')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M197.58,129.06l-51.61-19-19-51.65a15.92,15.92,0,0,0-29.88,0L78.07,110l-51.65,19a15.92,15.92,0,0,0,0,29.88L77.93,178l19,51.65a15.92,15.92,0,0,0,29.88,0l19-51.61,51.65-19a15.92,15.92,0,0,0,0-29.88Z"/>
+      </svg>
+      <span class="nav-label">ניתוח</span>
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="showTab('settings')">
+      <svg class="nav-icon" viewBox="0 0 256 256" fill="currentColor">
+        <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Z"/>
+      </svg>
+      <span class="nav-label">הגדרות</span>
+    </button>
+  </nav>
+</div><!-- /app -->
+
+
+<!-- ═══ MODALS ════════════════════════════════════════════════ -->
+
+<!-- Modal: Add/Edit Product -->
+<div id="modal-product" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-product')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="mp-title">מוצר חדש</p>
+    <span class="modal-sub" id="mp-sub">הוסיפי פרטים — AI יסווג ויעשיר אוטומטית</span>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">מותג</label>
+        <input class="modal-input" id="mp-brand" placeholder="Glow Recipe">
+      </div>
+      <div class="modal-field" style="flex:1.8">
+        <label class="modal-label">שם מוצר *</label>
+        <input class="modal-input" id="mp-name" placeholder="Plum Plump Serum">
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">קטגוריה</label>
+        <select class="modal-select" id="mp-category">
+          <option value="">AI יסווג ←</option>
+          <option value="cleanser">קלנזר</option>
+          <option value="toner">טונר</option>
+          <option value="exfoliant">אקספוליאנט</option>
+          <option value="serum">סרום</option>
+          <option value="eye_care">קרם עיניים</option>
+          <option value="moisturizer">מוסטורייזר</option>
+          <option value="spf">קרם הגנה</option>
+          <option value="retinoid">רטינואיד</option>
+          <option value="treatment">טיפול</option>
+          <option value="mask">מסכה</option>
+          <option value="oil">שמן</option>
+          <option value="other">אחר</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">זמן שימוש</label>
+        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.3rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-time-morning" checked> בוקר
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-time-night" checked> ערב
+          </label>
+        </div>
+      </div>
+    </div>
+    <div id="mp-ai-result"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveProductModal()">שמירה</button>
+      <button class="btn" onclick="closeModal('modal-product')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Scan Products -->
+<div id="modal-scan" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-scan')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title">סריקת מוצרים</p>
+    <span class="modal-sub">העלי תמונות — AI יזהה את כל המוצרים</span>
+    <div style="text-align:center;margin-bottom:.8rem">
+      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
+          <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+        </svg>
+        + הוסיפי תמונות
+        <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanFileSelected(this)">
+      </label>
+    </div>
+    <div id="scan-previews" style="display:none;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;max-height:160px;overflow-y:auto"></div>
+    <div id="scan-result" style="max-height:45dvh;overflow-y:auto"></div>
+    <div class="modal-actions" style="margin-top:.8rem">
+      <button class="btn btn-primary" onclick="runProductScan()">זהי מוצרים ✦</button>
+      <button class="btn" onclick="closeModal('modal-scan')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Step to Routine -->
+<div id="modal-add-step" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-add-step')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="mas-title">הוספת שלב</p>
+    <span class="modal-sub">בחרי מוצר מהספרייה</span>
+    <div class="filter-bar" id="mas-filter-bar">
+      <button class="filter-chip active" onclick="masFilter('all',this)">הכל</button>
+      <button class="filter-chip" onclick="masFilter('cleanser',this)">קלנזר</button>
+      <button class="filter-chip" onclick="masFilter('toner',this)">טונר</button>
+      <button class="filter-chip" onclick="masFilter('serum',this)">סרום</button>
+      <button class="filter-chip" onclick="masFilter('moisturizer',this)">לחות</button>
+      <button class="filter-chip" onclick="masFilter('spf',this)">הגנה</button>
+      <button class="filter-chip" onclick="masFilter('retinoid',this)">רטינול</button>
+    </div>
+    <div id="mas-product-list" style="max-height:55dvh;overflow-y:auto"></div>
+  </div>
+</div>
+
+
+<!-- Modal: Cycle Explanation Chat -->
+<div id="modal-cycle-explain" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-cycle-explain')">
+  <div class="modal-sheet" style="max-height:85dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="cycle-explain-title">למה בנית את המחזור כך?</p>
+    <span class="modal-sub">שאלי שאלות ממוקדות על הבחירות</span>
+
+    <!-- Chat messages -->
+    <div id="cycle-explain-body"
+         style="flex:1;overflow-y:auto;padding:.4rem 0;min-height:120px;max-height:50dvh"></div>
+
+    <!-- Input -->
+    <div class="chat-bar" style="margin-top:.6rem">
+      <textarea class="chat-input" id="cycle-explain-input"
+                placeholder="למה לא בחרת את...? אפשר להחליף את...?"
+                rows="1"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCycleChat()}"></textarea>
+      <button class="chat-send" onclick="sendCycleChat()">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="16" height="16">
+          <path d="M231.4,44.34a8,8,0,0,0-10.74-3.06L16.4,156.66A8,8,0,0,0,17.89,172l55.64,15.9L224,52.87A8,8,0,0,0,231.4,44.34Zm-180,137.44,63.65-63.64a8,8,0,0,1,11.32,11.31L62.72,193.11ZM192,224a8,8,0,0,1-15.65,2.19L161.5,168.34Z"/>
+        </svg>
+      </button>
+    </div>
+    <button class="btn" onclick="closeModal('modal-cycle-explain')" style="margin-top:.6rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+<!-- Modal: Library Consultation -->
+<div id="modal-library-consult" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-library-consult')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">ייעוץ ספרייה ✦</p>
+    <span class="modal-sub">AI בודק כפילויות, חוסרים והתנגשויות</span>
+    <div id="library-consult-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-library-consult')"
+            style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Analysis Upload -->
+<div id="modal-analysis-upload" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-analysis-upload')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">ניתוח עור AI</p>
+    <span class="modal-sub">העלי תמונה אחת או יותר של פניך — זוויות שונות מועילות לניתוח מדויק יותר</span>
+
+    <div style="text-align:center;margin-bottom:.8rem">
+      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
+        📸 + הוסיפי תמונות
+        <input type="file" id="analysis-upload-file" accept="image/*" multiple style="display:none" onchange="analysisFileSelected(this)">
+      </label>
+    </div>
+
+    <!-- Thumbnail strip -->
+    <div id="analysis-upload-thumbs"
+         style="display:none;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;max-height:100px;overflow-y:auto"></div>
+
+    <div id="analysis-upload-result" style="flex:1;overflow-y:auto"></div>
+
+    <div class="modal-actions" style="margin-top:.8rem">
+      <button class="btn btn-primary" onclick="runSkinAnalysis()">נתחי ✦</button>
+      <button class="btn" onclick="closeModal('modal-analysis-upload')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Analysis Detail -->
+<div id="modal-analysis-detail" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-analysis-detail')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">פרטי ניתוח</p>
+    <div id="analysis-detail-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-analysis-detail')"
+            style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Product Comparison -->
+<div id="modal-compare" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-compare')">
+  <div class="modal-sheet" style="max-height:90dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">השוואת מוצרים ✦</p>
+    <span class="modal-sub">בחרי מוצרים מהספרייה או הקלידי שמות מוצרים חיצוניים</span>
+
+    <!-- Product list from library -->
+    <div class="section-label" style="margin-bottom:.4rem">מהספרייה שלי</div>
+    <div id="compare-product-list"
+         style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:.3rem;margin-bottom:.7rem"></div>
+
+    <!-- External products -->
+    <div class="modal-field">
+      <label class="modal-label">מוצרים נוספים שלא בספרייה (שורה אחת לכל מוצר)</label>
+      <textarea class="modal-input" id="compare-free-text" rows="2"
+                placeholder="The Ordinary Niacinamide&#10;CeraVe Moisturizing Cream"
+                oninput="if(typeof _updateCompareCount==='function')_updateCompareCount()"></textarea>
+    </div>
+
+    <!-- Goal -->
+    <div class="modal-field">
+      <label class="modal-label">מה המטרה? (אופציונלי)</label>
+      <input class="modal-input" id="compare-goal" placeholder="לחות יומיומית, לפני קרם לחות, לעור שמן...">
+    </div>
+
+    <!-- Count indicator -->
+    <div id="compare-count" style="font-size:.72rem;color:var(--text-soft);text-align:center;margin-bottom:.6rem">
+      בחרי לפחות 2 מוצרים
+    </div>
+
+    <!-- Run comparison -->
+    <button class="btn btn-primary" onclick="runProductComparison()" style="width:100%;justify-content:center;margin-bottom:.7rem">
+      השווי ✦
+    </button>
+
+    <!-- Chat results -->
+    <div id="compare-chat"
+         style="flex:1;overflow-y:auto;min-height:80px;padding:.2rem 0"></div>
+
+    <!-- Follow-up input (shown after first response) -->
+    <div id="compare-followup-bar" class="chat-bar" style="display:none;margin-top:.5rem">
+      <input class="chat-input" id="compare-followup-input"
+             placeholder="שאלי שאלת המשך..."
+             style="border-radius:20px"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();sendCompareFollowUp()}">
+      <button class="chat-send" onclick="sendCompareFollowUp()">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="16" height="16">
+          <path d="M231.4,44.34a8,8,0,0,0-10.74-3.06L16.4,156.66A8,8,0,0,0,17.89,172l55.64,15.9L224,52.87A8,8,0,0,0,231.4,44.34Zm-180,137.44,63.65-63.64a8,8,0,0,1,11.32,11.31L62.72,193.11ZM192,224a8,8,0,0,1-15.65,2.19L161.5,168.34Z"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="btn" onclick="closeModal('modal-compare')" style="margin-top:.6rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Examine Product -->
+<div id="modal-examine" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-examine')">
+  <div class="modal-sheet" style="max-height:90dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">בחני מוצר ✦</p>
+    <span class="modal-sub">צלמי את המוצר ותקבלי ניתוח התאמה מלא לשגרה ולעורך</span>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:.4rem;margin-bottom:.8rem">
+      <button class="examine-tab filter-chip active" onclick="switchExamineTab('product',this)">🔍 בחינת מוצר</button>
+      <button class="examine-tab filter-chip" onclick="switchExamineTab('ingredients',this)">🧪 ניתוח רכיבים</button>
+    </div>
+
+    <!-- Shared: image upload -->
+    <div style="text-align:center;margin-bottom:.7rem">
+      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
+        📸 בחרי תמונה
+        <input type="file" id="examine-file" accept="image/*" style="display:none" onchange="examineFileSelected(this)">
+      </label>
+    </div>
+    <img id="examine-preview" style="display:none;width:100%;max-height:180px;object-fit:contain;border-radius:var(--r-sm);margin-bottom:.6rem">
+
+    <!-- Panel: Product -->
+    <div id="examine-panel-product">
+      <div class="modal-field">
+        <label class="modal-label">הערה (אופציונלי)</label>
+        <input class="modal-input" id="examine-hint" placeholder="לדוג׳: לחות לילה, סרום ויטמין C...">
+      </div>
+      <button class="btn btn-primary" onclick="runExamineProduct()" style="width:100%;justify-content:center;margin-bottom:.5rem">נתחי ✦</button>
+    </div>
+
+    <!-- Panel: Ingredients -->
+    <div id="examine-panel-ingredients" style="display:none">
+      <p class="text-soft" style="font-size:.76rem;margin-bottom:.6rem;line-height:1.5">צלמי את גב האריזה עם רשימת הרכיבים — AI יפרק ויסביר כל רכיב</p>
+      <button class="btn btn-primary" onclick="runAnalyzeIngredients()" style="width:100%;justify-content:center;margin-bottom:.5rem">נתחי רכיבים ✦</button>
+    </div>
+
+    <!-- Results -->
+    <div id="examine-result" style="flex:1;overflow-y:auto"></div>
+
+    <button class="btn" onclick="closeModal('modal-examine')" style="margin-top:.6rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+<!-- Modal: Build from Scratch -->
+<div id="modal-build-scratch" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-build-scratch')">
+  <div class="modal-sheet" style="max-height:88dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">מה חסר לי? ✦</p>
+    <span class="modal-sub">AI יבחן את הספרייה שלך ויבנה תכנית קניות מותאמת</span>
+
+    <div class="modal-field">
+      <label class="modal-label">תקציב לקניות</label>
+      <div style="display:flex;gap:.4rem">
+        <button class="budget-btn filter-chip active" data-budget="low" onclick="selectBudget(this)">עד 150₪</button>
+        <button class="budget-btn filter-chip" data-budget="medium" onclick="selectBudget(this)">עד 400₪</button>
+        <button class="budget-btn filter-chip" data-budget="unlimited" onclick="selectBudget(this)">ללא הגבלה</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="runBuildFromScratch()" style="width:100%;justify-content:center;margin-bottom:.6rem">בני לי תכנית ✦</button>
+    <div id="scratch-result" style="flex:1;overflow-y:auto"></div>
+    <button class="btn" onclick="closeModal('modal-build-scratch')" style="margin-top:.6rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+<!-- Modal: Seasonal Advice -->
+<div id="modal-seasonal" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-seasonal')">
+  <div class="modal-sheet" style="max-height:85dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <p class="modal-title">התאמות עונתיות ✦</p>
+    <div id="seasonal-body" style="flex:1;overflow-y:auto;padding:.3rem 0"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-seasonal')" style="margin-top:.8rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Cycle Goal Input -->
+<div id="modal-cycle-type" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-cycle-type')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title">מה את רוצה להשיג?</p>
+    <span class="modal-sub">תארי את המטרה שלך — AI יבנה מחזור מותאם אישית</span>
+
+    <div class="modal-field" style="margin-top:.7rem">
+      <textarea class="modal-input" id="cycle-goal-input" rows="3"
+                placeholder="לדוג׳: רוצה לטפל באקנה ובנקבוביות בלי לייבש את העור. יש לי רטינול ו-AHA...&#10;או: מחזור עדין בלי חומצות חזקות&#10;או: תני לי skin cycling קלאסי"
+                style="resize:none;line-height:1.6"
+                onkeydown="if(event.key==='Enter'&&event.metaKey){buildCycleWithGoal()}"></textarea>
+    </div>
+
+    <p class="text-soft" style="font-size:.7rem;margin-bottom:.7rem;line-height:1.5">
+      לא חייבת לכתוב כלום — אם תשאירי ריק, AI יבנה מחזור קלאסי לפי הספרייה שלך.
+    </p>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="buildCycleWithGoal()">בני מחזור ✦</button>
+      <button class="btn" onclick="closeModal('modal-cycle-type')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Step Instructions -->
+<div id="modal-step-instructions" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-step-instructions')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="si-product-name">הוראות שימוש</p>
+    <div id="si-body" style="margin-top:.5rem"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-step-instructions')"
+            style="margin-top:.9rem;width:100%;justify-content:center">סגירה</button>
+  </div>
+</div>
+
+
+<!-- Modal: Step Long-press Actions -->
+<div id="modal-step-actions" class="modal-backdrop hidden" onclick="if(event.target===this)closeModal('modal-step-actions')">
+  <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom)">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="sa-product-name" style="font-size:.9rem"></p>
+    <div style="display:flex;flex-direction:column;gap:.45rem;margin-top:.4rem">
+      <button onclick="stepActionReplace()"
+              style="display:flex;align-items:center;gap:.75rem;padding:.85rem .9rem;
+                     border-radius:var(--r-sm);border:1.5px solid var(--border);
+                     background:var(--card-bg);cursor:pointer;font-size:.84rem;color:var(--text-dark);
+                     font-family:'Varela Round',sans-serif">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="17" height="17" style="color:var(--latte);flex-shrink:0">
+          <path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43A80,80,0,1,0,207.72,170.1a8,8,0,1,1,13.67,8.35A96,96,0,1,1,125.93,34A95.54,95.54,0,0,1,194,57.34L208,71.36V48a8,8,0,0,1,16,0Z"/>
+        </svg>
+        החלפת מוצר
+      </button>
+      <button onclick="stepActionRemove()"
+              style="display:flex;align-items:center;gap:.75rem;padding:.85rem .9rem;
+                     border-radius:var(--r-sm);border:1.5px solid rgba(192,57,43,.25);
+                     background:rgba(192,57,43,.04);cursor:pointer;font-size:.84rem;color:#a93226;
+                     font-family:'Varela Round',sans-serif">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="17" height="17" style="flex-shrink:0">
+          <path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192Z"/>
+        </svg>
+        הסר שלב
+      </button>
+    </div>
+    <button class="btn" onclick="closeModal('modal-step-actions')"
+            style="margin-top:.7rem;width:100%;justify-content:center">ביטול</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<!-- Scripts — ORDER MATTERS -->
+<script src="db.js"></script>
+<script src="ai.js"></script>
+<script src="ui-products.js"></script>
+<script src="ui-routines.js"></script>
+<script src="ui-analysis.js"></script>
+<script src="ui-settings.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
