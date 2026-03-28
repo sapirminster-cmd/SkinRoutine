@@ -669,13 +669,11 @@ input, select, textarea { font-family: inherit; }
   overflow-y: auto;
 }
 .modal-handle {
-  /* Visual pill — small and minimal */
-  width: 32px; height: 4px;
+  width: 28px; height: 3px;
   border-radius: 2px;
-  background: var(--border);
+  background: rgba(176,152,144,.4);
   margin: 0 auto .9rem;
   cursor: grab;
-  /* Invisible touch target via pseudo-element — doesn't affect layout */
   position: relative;
 }
 .modal-handle::before {
