@@ -223,85 +223,62 @@ function checkDailyReset() {
 
 
 // ─── Swipe-down to close modals ───────────────────────────────
-// Trigger: .modal-handle OR top 52px of sheet.
-// Physics: velocity-aware — fast flick closes even at <80px.
-// Rubber-band resistance when dragging (feels natural).
+// 1:1 finger tracking · velocity-aware dismiss · smooth spring-back
 (function initSwipeToClose() {
-  let startY    = 0;
-  let lastY     = 0;
-  let lastTime  = 0;
-  let velocity  = 0;   // px/ms
+  let startY = 0, lastY = 0, lastTime = 0, velocity = 0;
   let activeSheet = null;
 
   function isHandleArea(target, sheet) {
     if (target.closest('.modal-handle')) return true;
-    const rect = sheet.getBoundingClientRect();
-    return startY - rect.top < 52;
+    return startY - sheet.getBoundingClientRect().top < 52;
   }
 
   document.addEventListener('touchstart', e => {
     const sheet = e.target.closest?.('.modal-sheet');
     if (!sheet) return;
-    startY   = e.touches[0].clientY;
-    lastY    = startY;
-    lastTime = Date.now();
-    velocity = 0;
+    startY = lastY = e.touches[0].clientY;
+    lastTime = Date.now(); velocity = 0;
     if (!isHandleArea(e.target, sheet)) return;
     activeSheet = sheet;
     activeSheet.style.transition = 'none';
-    activeSheet.style.willChange = 'transform, opacity';
+    activeSheet.style.willChange = 'transform,opacity';
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
     if (!activeSheet) return;
-    const now    = Date.now();
-    const dy     = e.touches[0].clientY - startY;
-    const rawDy  = e.touches[0].clientY - lastY;
-    velocity     = rawDy / Math.max(now - lastTime, 1);
-    lastY        = e.touches[0].clientY;
-    lastTime     = now;
-
-    if (dy <= 0) {
-      activeSheet.style.transform = '';
-      activeSheet.style.opacity   = '1';
-      return;
-    }
-
+    const now = Date.now();
+    const dy  = e.touches[0].clientY - startY;
+    velocity  = (e.touches[0].clientY - lastY) / Math.max(now - lastTime, 1);
+    lastY     = e.touches[0].clientY;
+    lastTime  = now;
+    if (dy <= 0) { activeSheet.style.transform = ''; activeSheet.style.opacity = '1'; return; }
     e.preventDefault();
-
-    // Rubber-band: resistance grows as dy increases
-    const resistance = 0.55;
-    const visual     = dy * resistance;
-    activeSheet.style.transform = `translateY(${visual}px)`;
-    activeSheet.style.opacity   = String(Math.max(0, 1 - visual / 280));
+    // Pure 1:1 tracking — finger = sheet
+    activeSheet.style.transform = `translateY(${dy}px)`;
+    activeSheet.style.opacity   = String(Math.max(0, 1 - dy / 350));
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
     if (!activeSheet) return;
     const sheet = activeSheet;
     activeSheet = null;
-
-    const dy        = e.changedTouches[0].clientY - startY;
-    const visual    = dy * 0.55;
-    // Dismiss if dragged far enough OR flicked fast enough
-    const shouldDismiss = visual > 100 || velocity > 0.5;
-
     sheet.style.willChange = '';
-
-    if (shouldDismiss) {
-      sheet.style.transition = 'transform .22s cubic-bezier(.4,0,1,1), opacity .22s ease';
+    const dy = e.changedTouches[0].clientY - startY;
+    // Dismiss: ≥90px drag OR fast flick (≥0.4px/ms)
+    const dismiss = dy > 90 || velocity > 0.4;
+    if (dismiss) {
+      sheet.style.transition = 'transform .2s cubic-bezier(.4,0,.6,1), opacity .2s ease';
       sheet.style.transform  = 'translateY(100%)';
       sheet.style.opacity    = '0';
       setTimeout(() => {
         sheet.closest('.modal-backdrop')?.classList.add('hidden');
-        sheet.style.cssText = '';  // clean up all inline styles
-      }, 220);
+        sheet.style.cssText = '';
+      }, 200);
     } else {
-      // Spring back with overshoot feel
-      sheet.style.transition = 'transform .35s cubic-bezier(.175,.885,.32,1.275), opacity .25s ease';
+      sheet.style.transition = 'transform .3s cubic-bezier(.34,1.4,.64,1), opacity .25s ease';
       sheet.style.transform  = '';
       sheet.style.opacity    = '';
-      setTimeout(() => { sheet.style.transition = ''; }, 360);
+      setTimeout(() => { sheet.style.transition = ''; }, 310);
     }
   }, { passive: true });
 })();
