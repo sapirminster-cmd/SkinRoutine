@@ -141,9 +141,14 @@ function _emptyRoutine(routineId) {
 
 function _routineActions(routineId, hasContent) {
   const isMorning = routineId === 'morning';
+  const addBtn = `<button class="btn btn-sm" onclick="openAddStepModal('${routineId}')">
+    <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+    הוסיפי שלב
+  </button>`;
 
   if (isMorning) return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildMorning()">✦ בני עם AI</button>
+    ${addBtn}
     ${hasContent ? `
       <button class="btn btn-sm" onclick="openMorningExplanation()">
         <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
@@ -162,6 +167,7 @@ function _routineActions(routineId, hasContent) {
 
   return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildCycle()">✦ ${hasContent ? 'בני מחזור מחדש' : 'בני מחזור'}</button>
+    ${addBtn}
     ${hasContent ? `
       <button class="btn btn-sm" onclick="openCycleExplanation()">
         <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
