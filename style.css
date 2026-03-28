@@ -673,6 +673,11 @@ input, select, textarea { font-family: inherit; }
   border-radius: 2px;
   background: var(--border);
   margin: 0 auto .9rem;
+  /* Large touch target — invisible padding around the 4px pill */
+  padding: 14px 40px;
+  box-sizing: content-box;
+  cursor: grab;
+  touch-action: none;
 }
 .modal-title {
   font-family: 'DanaYad', sans-serif;
