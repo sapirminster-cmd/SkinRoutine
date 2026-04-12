@@ -497,6 +497,51 @@ ${_profileCtx()}
   return _aiCall({ messages: [{ role: 'user', content: prompt }] });
 }
 
+
+async function aiAdaptRoutine(base64, mimeType, routineId) {
+  const routine   = DB.getRoutines().find(r => r.id === routineId);
+  const products  = DB.getProducts();
+  const isMorning = routineId === 'morning';
+
+  const currentSteps = isMorning
+    ? (routine?.steps || []).sort((a,b) => a.order - b.order)
+        .map(s => products.find(p => p.id === s.productId))
+        .filter(Boolean)
+        .map(p => `${p.brand ? p.brand+' ' : ''}${p.name} (${p.category})`)
+        .join(' -> ')
+    : (routine?.cycle || []).map((d,i) => {
+        const names = d.steps.map(s => products.find(p => p.id === s.productId))
+          .filter(Boolean).map(p => p.name).join(', ');
+        return `${d.label}: ${names}`;
+      }).join(' | ');
+
+  const available = products.filter(p => p.active)
+    .map(p => `ID:${p.id} | ${p.brand?p.brand+' ':''}${p.name} | ${p.category} | ${(p.timeOfUse||[]).join('+')}`)
+    .join('\n');
+
+  const prompt = `בחני את מצב עור הפנים בתמונה ותני המלצות התאמה לשגרת ${isMorning ? 'הבוקר' : 'הערב'}.
+${_profileCtx()}
+
+השגרה הנוכחית:
+${currentSteps || 'ריקה'}
+
+מוצרים זמינים:
+${available}
+
+ענה ב-JSON בלבד:
+{"skinObservation":"תצפית קצרה על מצב העור","overallFit":"good|adjust|rethink","suggestions":[{"type":"keep|add|remove|swap|reorder","productId":"ID אם רלוונטי","productName":"שם","reason":"הסבר קצר","alternative":"חלופה אם swap"}],"urgentTip":"טיפ דחוף אחד או null"}
+overallFit: good=מתאימה, adjust=שינויים קטנים, rethink=שינוי משמעותי.`;
+
+  const text = await _aiCall({
+    _maxTok: 1200,
+    messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+      { type: 'text',  text: prompt },
+    ]}],
+  });
+  return _parseJSON(text);
+}
+
 // ─── Public API ───────────────────────────────────────────────
 window.AI = {
   enrichProduct:  aiEnrichProduct,
@@ -513,4 +558,5 @@ window.AI = {
   analyzeIngredients: aiAnalyzeIngredients,
   buildFromScratch:   aiBuildFromScratch,
   seasonalAdvice:     aiSeasonalAdvice,
+  adaptRoutine:       aiAdaptRoutine,
 };
