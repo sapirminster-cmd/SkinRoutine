@@ -149,6 +149,12 @@ function _routineActions(routineId, hasContent) {
   if (isMorning) return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildMorning()">✦ בני עם AI</button>
     ${addBtn}
+    <button class="btn btn-sm" onclick="openAdaptRoutineModal('morning')" title="התאמה לפי תמונת עור">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+        <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+      </svg>
+      התאמי לעור
+    </button>
     ${hasContent ? `
       <button class="btn btn-sm" onclick="openMorningExplanation()">
         <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
@@ -168,6 +174,12 @@ function _routineActions(routineId, hasContent) {
   return `<div class="routine-actions">
     <button class="btn btn-primary btn-sm" onclick="openAIBuildCycle()">✦ ${hasContent ? 'בני מחזור מחדש' : 'בני מחזור'}</button>
     ${addBtn}
+    <button class="btn btn-sm" onclick="openAdaptRoutineModal('night')" title="התאמה לפי תמונת עור">
+      <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
+        <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
+      </svg>
+      התאמי לעור
+    </button>
     ${hasContent ? `
       <button class="btn btn-sm" onclick="openCycleExplanation()">
         <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
@@ -808,4 +820,115 @@ function replaceStepFromModal(routineId, newProductId, cycleDay) {
   closeModal('modal-add-step');
   renderRoutines();
   showToast('המוצר הוחלף ✦', 'success');
+}
+
+// ─── Adapt Routine to Skin Photo ─────────────────────────────
+
+let _adaptImage = null;
+
+function openAdaptRoutineModal(routineId) {
+  if (!DB.getSettings().apiKey) { showToast('נא להזין מפתח API בהגדרות', 'error'); return; }
+  const modal = document.getElementById('modal-adapt-routine');
+  if (!modal) return;
+  _adaptImage = null;
+  modal.dataset.routineId = routineId;
+  const titleEl = document.getElementById('adapt-routine-title');
+  if (titleEl) titleEl.textContent = routineId === 'morning' ? 'התאמת שגרת הבוקר לעורך' : 'התאמת שגרת הערב לעורך';
+  const prev = document.getElementById('adapt-preview');
+  if (prev) { prev.src = ''; prev.style.display = 'none'; }
+  document.getElementById('adapt-result').innerHTML = '';
+  document.getElementById('adapt-file').value = '';
+  modal.classList.remove('hidden');
+}
+
+function adaptFileSelected(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  document.getElementById('adapt-result').innerHTML = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const MAX = 3.5 * 1024 * 1024;
+    const [header, base64] = e.target.result.split(',');
+    const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+    const store = (b64, mime, url) => {
+      _adaptImage = { base64: b64, mimeType: mime };
+      const prev = document.getElementById('adapt-preview');
+      if (prev) { prev.src = url; prev.style.display = 'block'; }
+    };
+    if (Math.ceil(base64.length * 3/4) <= MAX) { store(base64, mimeType, e.target.result); return; }
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const MAX_DIM = 1400;
+      if (w > MAX_DIM || h > MAX_DIM) { const r = Math.min(MAX_DIM/w, MAX_DIM/h); w=Math.round(w*r); h=Math.round(h*r); }
+      c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+      let url = c.toDataURL('image/jpeg', 0.82);
+      if (url.length*3/4 > MAX) url = c.toDataURL('image/jpeg', 0.65);
+      const [h2,b2] = url.split(',');
+      store(b2, 'image/jpeg', url);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runAdaptRoutine() {
+  const resultEl  = document.getElementById('adapt-result');
+  const routineId = document.getElementById('modal-adapt-routine')?.dataset.routineId;
+  if (!_adaptImage) { showToast('נא לבחור תמונה', 'error'); return; }
+
+  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;padding:.7rem 0;color:var(--text-soft);font-size:.8rem">
+    <span class="ai-thinking-dots"><span></span><span></span><span></span></span>
+    מנתחת את מצב העור ומתאימה את השגרה...
+  </div>`;
+
+  try {
+    const data = await AI.adaptRoutine(_adaptImage.base64, _adaptImage.mimeType, routineId);
+    resultEl.innerHTML = _adaptResultHTML(data);
+  } catch(err) {
+    const retry = err.retryable || err.message?.includes('עמוסים');
+    resultEl.innerHTML = `<div class="conflict-warning">${err.message}${retry ? `<br><button onclick="runAdaptRoutine()" class="btn btn-sm" style="margin-top:.4rem;font-size:.72rem">נסי שוב ↺</button>` : ''}</div>`;
+  }
+}
+
+function _adaptResultHTML(d) {
+  if (!d) return '';
+  const fitColor = { good:'#6a8f6a', adjust:'var(--latte)', rethink:'#c0392b' }[d.overallFit] || 'var(--text-soft)';
+  const fitBg    = { good:'rgba(100,180,100,.08)', adjust:'rgba(255,200,100,.1)', rethink:'rgba(192,57,43,.07)' }[d.overallFit] || 'var(--driftwood)';
+  const fitLabel = { good:'השגרה מתאימה לעורך עכשיו ✓', adjust:'כמה שינויים יכולים לשפר', rethink:'מומלץ לשקול שינוי' }[d.overallFit] || '';
+  const typeIcon = { keep:'✓', add:'＋', remove:'−', swap:'⇄', reorder:'↕' };
+  const typeColor= { keep:'#6a8f6a', add:'var(--latte)', remove:'#c0392b', swap:'var(--latte)', reorder:'var(--text-soft)' };
+
+  let h = '';
+
+  // Skin observation + overall fit
+  h += `<div style="padding:.65rem .75rem;border-radius:var(--r-sm);background:${fitBg};margin-bottom:.7rem">
+    ${d.skinObservation ? `<p style="font-size:.78rem;color:var(--text-dark);line-height:1.6;margin-bottom:.35rem">${esc(d.skinObservation)}</p>` : ''}
+    <span style="font-size:.72rem;font-weight:600;color:${fitColor}">${fitLabel}</span>
+  </div>`;
+
+  // Urgent tip
+  if (d.urgentTip) {
+    h += `<div style="display:flex;align-items:flex-start;gap:.4rem;padding:.5rem .65rem;border-radius:var(--r-sm);background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.15);margin-bottom:.7rem">
+      <span style="font-size:.75rem;flex-shrink:0;margin-top:.05rem">⚡</span>
+      <p style="font-size:.76rem;color:var(--text-dark);line-height:1.55;margin:0">${esc(d.urgentTip)}</p>
+    </div>`;
+  }
+
+  // Suggestions
+  if (d.suggestions?.length) {
+    h += `<div class="section-label" style="margin-bottom:.45rem">המלצות לשגרה</div>`;
+    h += d.suggestions.map(s => `
+      <div style="display:flex;align-items:flex-start;gap:.5rem;padding:.45rem .6rem;border-radius:var(--r-sm);margin-bottom:.3rem;background:rgba(176,152,144,.08);border:1px solid var(--border)">
+        <span style="font-size:.75rem;font-weight:700;color:${typeColor[s.type]||'var(--text-soft)'};flex-shrink:0;min-width:1rem;margin-top:.05rem">${typeIcon[s.type]||'·'}</span>
+        <div style="flex:1;min-width:0">
+          ${s.productName ? `<span style="font-size:.78rem;font-weight:600;color:var(--text-dark)">${esc(s.productName)}</span>` : ''}
+          ${s.alternative ? `<span style="font-size:.72rem;color:var(--latte)"> → ${esc(s.alternative)}</span>` : ''}
+          <p style="font-size:.72rem;color:var(--text-soft);margin:.1rem 0 0;line-height:1.45">${esc(s.reason)}</p>
+        </div>
+      </div>`).join('');
+  }
+
+  return h;
 }
