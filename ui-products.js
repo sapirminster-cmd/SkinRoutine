@@ -5,18 +5,18 @@
 
 // ─── Global constants (used by ui-routines.js too) ────────────
 const CATEGORIES = {
-  cleanser:    { label:'קלנזר',      emoji:'🫧' },
-  toner:       { label:'טונר',        emoji:'💦' },
-  exfoliant:   { label:'אקספוליאנט', emoji:'✨' },
-  serum:       { label:'סרום',        emoji:'💎' },
-  eye_care:    { label:'קרם עיניים',  emoji:'👁' },
-  moisturizer: { label:'מוסטורייזר',  emoji:'🌿' },
-  spf:         { label:'קרם הגנה',    emoji:'☀️' },
-  retinoid:    { label:'רטינואיד',    emoji:'🔬' },
-  treatment:   { label:'טיפול',       emoji:'⚗️' },
-  mask:        { label:'מסכה',        emoji:'🎭' },
-  oil:         { label:'שמן',         emoji:'🌾' },
-  other:       { label:'אחר',         emoji:'📦' },
+  cleanser:    { label:'ניקוי',          emoji:'🫧' },
+  toner:       { label:'טונר',          emoji:'💦' },
+  exfoliant:   { label:'פילינג',         emoji:'✨' },
+  serum:       { label:'סרום',           emoji:'💎' },
+  eye_care:    { label:'טיפול עיניים',   emoji:'👁' },
+  moisturizer: { label:'קרם לחות',       emoji:'🌿' },
+  spf:         { label:'קרם הגנה',       emoji:'☀️' },
+  retinoid:    { label:'רטינול',         emoji:'🔬' },
+  treatment:   { label:'טיפול ממוקד',    emoji:'⚗️' },
+  mask:        { label:'מסכה',           emoji:'🎭' },
+  oil:         { label:'שמן פנים',       emoji:'🌾' },
+  other:       { label:'אחר',            emoji:'📦' },
 };
 
 function esc(str) {
@@ -39,10 +39,33 @@ function renderProducts() {
 
   listEl.innerHTML = filtered.length
     ? filtered.map((p,i) => _productCard(p,i)).join('')
-    : _productsEmpty();
+    : _productsEmpty(_productFilter, allProducts.length);
 
   // Show consult bar only when library has 2+ products
   if (consultEl) consultEl.style.display = allProducts.length >= 2 ? 'flex' : 'none';
+
+  // Update filter chip counts
+  _updateFilterCounts(allProducts);
+}
+
+function _updateFilterCounts(products) {
+  const catKeys = Object.keys(CATEGORIES);
+  catKeys.forEach(cat => {
+    const chip = document.querySelector(`#product-filter-bar [data-cat="${cat}"]`);
+    if (!chip) return;
+    const count = products.filter(p => p.category === cat).length;
+    chip.dataset.count = count;
+    // Show count badge
+    const badge = chip.querySelector('.chip-count');
+    if (badge) badge.textContent = count > 0 ? count : '';
+  });
+  // Active count
+  const activeChip = document.querySelector('#product-filter-bar [data-cat="active"]');
+  if (activeChip) {
+    const count = products.filter(p => p.active).length;
+    const badge = activeChip.querySelector('.chip-count');
+    if (badge) badge.textContent = count > 0 ? count : '';
+  }
 }
 
 function _productCard(p, i) {
@@ -186,13 +209,29 @@ function _timeCls(t) {
   return t.includes('morning') ? 'badge-morning' : 'badge-night';
 }
 
-function _productsEmpty() {
+function _productsEmpty(filter, totalCount) {
+  // Filtered empty — different from totally empty library
+  if (filter !== 'all' && totalCount > 0) {
+    const catLabel = CATEGORIES[filter]?.label || filter;
+    return `<div class="empty-state">
+      <div class="empty-state-title">אין מוצרי ${catLabel} בספרייה</div>
+      <p class="empty-state-sub">הוסיפי מוצר ידנית או סרקי תמונה</p>
+      <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.7rem">
+        <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">+ הוסיפי מוצר</button>
+        <button class="btn btn-sm" onclick="filterProducts('all',document.querySelector('#product-filter-bar .filter-chip'))">הצגת הכל</button>
+      </div>
+    </div>`;
+  }
   return `<div class="empty-state">
     <svg class="empty-state-icon" viewBox="0 0 256 256" fill="currentColor">
       <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8Z"/>
     </svg>
     <div class="empty-state-title">הספרייה ריקה</div>
     <p class="empty-state-sub">הוסיפי מוצר ידנית או סרקי תמונה</p>
+    <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.7rem">
+      <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">+ הוסיפי מוצר</button>
+      <button class="btn btn-sm" onclick="openScanModal()">📸 סריקה</button>
+    </div>
   </div>`;
 }
 
