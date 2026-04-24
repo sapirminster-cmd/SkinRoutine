@@ -103,9 +103,17 @@ async function aiScanProducts(images) {
 
   const prompt = `זהי את כל מוצרי הטיפוח שנראים ב-${images.length} תמונות.
 ${_profileCtx()}
-ענה ב-JSON בלבד:
-{"products":[{"brand":"מותג","name":"שם","category":"cleanser|toner|exfoliant|serum|eye_care|moisturizer|spf|retinoid|treatment|mask|oil|other","subCat":"תיאור","timeOfUse":["morning","night"],"ingredients":["רכיב1"],"benefits":["יתרון1"],"warnings":[],"conflicts":[],"note":"הוראה"}]}
-כלולי רק מוצרים שזוהו בוודאות. אל תכפילי מוצרים שנראים בכמה תמונות.`;
+
+הוראות זיהוי:
+- קראי את שם המוצר המדויק מהאריזה — באנגלית/עברית כפי שכתוב
+- זהי את המותג מהלוגו או הכיתוב
+- קבעי קטגוריה לפי פונקציית המוצר, לא לפי הצורה
+- אל תכפילי מוצר שמופיע בכמה תמונות — כלולי אותו פעם אחת
+- אם לא ניתן לקרוא שם ברור — אל תכלולי את המוצר
+- timeOfUse: ["morning"] בוקר, ["night"] ערב, ["morning","night"] שניהם
+
+ענה ב-JSON בלבד, ללא טקסט נוסף:
+{"products":[{"brand":"מותג","name":"שם מדויק כפי שכתוב על האריזה","category":"cleanser|toner|exfoliant|serum|eye_care|moisturizer|spf|retinoid|treatment|mask|oil|other","subCat":"תיאור קצר","timeOfUse":["morning","night"],"ingredients":["רכיב פעיל 1"],"benefits":["יתרון 1"],"warnings":[],"conflicts":[],"note":"הוראת שימוש קצרה"}]}`;
 
   const text = await _aiCall({
     _maxTok: 2000,
