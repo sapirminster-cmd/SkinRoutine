@@ -87,62 +87,61 @@
 
     <!-- TAB: Products -->
     <div class="view" id="view-products">
-      <div class="page-header">
-        <span class="page-title">ספריית מוצרים</span>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn btn-sm" onclick="openExamineModal()">
-            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
-              <path d="M229.66,218.34l-50.07-50.07A88.11,88.11,0,1,0,168,229.66,87.59,87.59,0,0,0,179.59,218Zm-137-30.46a72,72,0,1,1,51.83,21.87A71.52,71.52,0,0,1,92.66,187.88Zm128.22,38.45a8,8,0,0,1-11.31,0l-27.84-27.83a96.5,96.5,0,0,0,11.31-11.31l27.84,27.83A8,8,0,0,1,220.88,226.33Z"/>
-            </svg>
-            בחני מוצר
-          </button>
-          <button class="btn btn-sm" onclick="openCompareModal()">
-            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
-              <path d="M230.14,58.87A8,8,0,0,0,224,56H175.4L151.58,18.35a8,8,0,0,0-13.16,0L114.6,56H32A8,8,0,0,0,24,67.2L56,165.07V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V165.07l32-97.87A8,8,0,0,0,230.14,58.87ZM183.8,72l-9.33,28.49A23.85,23.85,0,0,1,168,99a24,24,0,0,1,0-48,23.85,23.85,0,0,1,6.47.9ZM128,32.65,142.6,56H113.4ZM72,99a23.85,23.85,0,0,1-6.47-.51L56.2,72H81.53A23.85,23.85,0,0,1,88,99.9,24,24,0,0,1,72,99Zm112,101H72V176H184Zm5.49-40H178.78a40,40,0,0,0-101.56,0H66.51l-23.82-72.69A40,40,0,0,0,104,123a39.54,39.54,0,0,0,24-8,39.54,39.54,0,0,0,24,8,40,40,0,0,0,61.31-35.69Z"/>
-            </svg>
-            השוואה
-          </button>
-          <button class="btn btn-sm" onclick="openScanModal()">
-            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
-              <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
-            </svg>
-            סריקה
-          </button>
-          <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">
-            <svg viewBox="0 0 256 256" fill="currentColor" width="13" height="13">
-              <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>
-            </svg>
-            הוספה
-          </button>
-        </div>
+
+      <!-- Row 1: Title -->
+      <div style="padding:1rem 1rem .5rem">
+        <h1 style="font-family:'DanaYad',sans-serif;-webkit-text-stroke:.8px var(--text-dark);
+                   font-size:1.45rem;color:var(--text-dark);margin:0">ספריית מוצרים</h1>
+        <span id="products-count" style="font-size:.7rem;color:var(--text-soft);display:block;margin-top:.1rem"></span>
       </div>
-      <div class="filter-bar" id="product-filter-bar">
-        <button class="filter-chip active" onclick="filterProducts('all',this)">הכל</button>
-        <button class="filter-chip" onclick="filterProducts('active',this)">פעיל</button>
-        <button class="filter-chip" onclick="filterProducts('cleanser',this)">קלנזר</button>
-        <button class="filter-chip" onclick="filterProducts('toner',this)">טונר</button>
-        <button class="filter-chip" onclick="filterProducts('serum',this)">סרום</button>
-        <button class="filter-chip" onclick="filterProducts('moisturizer',this)">לחות</button>
-        <button class="filter-chip" onclick="filterProducts('spf',this)">הגנה</button>
-        <button class="filter-chip" onclick="filterProducts('retinoid',this)">רטינול</button>
-        <button class="filter-chip" onclick="filterProducts('exfoliant',this)">אקספוליאנט</button>
-        <button class="filter-chip" onclick="filterProducts('treatment',this)">טיפול</button>
-      </div>
-      <!-- Library consult bar (shown when 2+ products exist) -->
-      <div id="library-consult-bar" style="display:none;align-items:center;justify-content:space-between;
-           background:rgba(176,152,144,.12);border-radius:var(--r-sm);padding:.6rem .85rem;
-           margin-bottom:.8rem;gap:.7rem">
-        <span style="font-size:.75rem;color:var(--text-soft);line-height:1.4">
-          רוצי לדעת אם הספרייה שלך מאוזנת?
-        </span>
-        <button class="btn btn-sm" onclick="openLibraryConsult()" style="white-space:nowrap;flex-shrink:0">
-          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12">
-            <path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180Zm-12-108c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Z"/>
-          </svg>
-          ייעוץ ספרייה ✦
+
+      <!-- Row 2: Feature buttons -->
+      <div style="display:flex;gap:.4rem;padding:0 1rem .6rem;overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <button class="btn btn-primary btn-sm" onclick="openAddProductModal()" style="white-space:nowrap;flex-shrink:0">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+          הוספה
+        </button>
+        <button class="btn btn-sm" onclick="openScanModal()" style="white-space:nowrap;flex-shrink:0">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>
+          סריקת תמונה
+        </button>
+        <button class="btn btn-sm" onclick="openExamineModal()" style="white-space:nowrap;flex-shrink:0">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M229.66,218.34l-50.07-50.07A88.11,88.11,0,1,0,168,229.66,87.59,87.59,0,0,0,179.59,218Zm-137-30.46a72,72,0,1,1,51.83,21.87A71.52,71.52,0,0,1,92.66,187.88Zm128.22,38.45a8,8,0,0,1-11.31,0l-27.84-27.83a96.5,96.5,0,0,0,11.31-11.31l27.84,27.83A8,8,0,0,1,220.88,226.33Z"/></svg>
+          בחני מוצר
+        </button>
+        <button class="btn btn-sm" onclick="openCompareModal()" style="white-space:nowrap;flex-shrink:0">
+          <svg viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="M230.14,58.87A8,8,0,0,0,224,56H175.4L151.58,18.35a8,8,0,0,0-13.16,0L114.6,56H32A8,8,0,0,0,24,67.2L56,165.07V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V165.07l32-97.87A8,8,0,0,0,230.14,58.87ZM128,32.65,142.6,56H113.4ZM72,99a24,24,0,0,1,0-48Zm112,101H72V176H184Z"/></svg>
+          השוואה
         </button>
       </div>
-      <div id="products-list"></div>
+
+      <!-- Row 3: Library consult bar -->
+      <div id="library-consult-bar" style="display:none;align-items:center;justify-content:space-between;
+           background:rgba(176,152,144,.12);border-radius:var(--r-sm);padding:.55rem .85rem;
+           margin:0 1rem .5rem;gap:.7rem">
+        <span style="font-size:.73rem;color:var(--text-soft);line-height:1.4">האם הספרייה שלך מאוזנת?</span>
+        <button class="btn btn-sm" onclick="openLibraryConsult()" style="white-space:nowrap;flex-shrink:0">
+          ייעוץ ✦
+        </button>
+      </div>
+
+      <!-- Row 4: Filter chips by category -->
+      <div class="filter-bar" id="product-filter-bar" style="padding-right:1rem;padding-left:1rem">
+        <button class="filter-chip active" data-cat="all" onclick="filterProducts('all',this)">הכל</button>
+        <button class="filter-chip" data-cat="active" onclick="filterProducts('active',this)">פעיל <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="cleanser" onclick="filterProducts('cleanser',this)">ניקוי <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="toner" onclick="filterProducts('toner',this)">טונר <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="serum" onclick="filterProducts('serum',this)">סרום <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="moisturizer" onclick="filterProducts('moisturizer',this)">קרם לחות <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="spf" onclick="filterProducts('spf',this)">קרם הגנה <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="retinoid" onclick="filterProducts('retinoid',this)">רטינול <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="exfoliant" onclick="filterProducts('exfoliant',this)">פילינג <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="treatment" onclick="filterProducts('treatment',this)">טיפול <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="mask" onclick="filterProducts('mask',this)">מסכה <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+        <button class="filter-chip" data-cat="oil" onclick="filterProducts('oil',this)">שמן <span class="chip-count" style="font-size:.6rem;opacity:.7"></span></button>
+      </div>
+
+      <div id="products-list" style="padding:0 1rem"></div>
     </div>
 
     <!-- TAB: Analysis -->
@@ -350,12 +349,12 @@
         <label class="modal-label">קטגוריה</label>
         <select class="modal-select" id="mp-category">
           <option value="">AI יסווג ←</option>
-          <option value="cleanser">קלנזר</option>
+          <option value="cleanser">ניקוי</option>
           <option value="toner">טונר</option>
-          <option value="exfoliant">אקספוליאנט</option>
+          <option value="exfoliant">פילינג</option>
           <option value="serum">סרום</option>
           <option value="eye_care">קרם עיניים</option>
-          <option value="moisturizer">מוסטורייזר</option>
+          <option value="moisturizer">קרם לחות</option>
           <option value="spf">קרם הגנה</option>
           <option value="retinoid">רטינואיד</option>
           <option value="treatment">טיפול</option>
@@ -391,13 +390,16 @@
     <p class="modal-title">סריקת מוצרים</p>
     <span class="modal-sub">העלי תמונות — AI יזהה את כל המוצרים</span>
     <div style="text-align:center;margin-bottom:.8rem">
-      <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer">
-        <svg viewBox="0 0 256 256" fill="currentColor" width="15" height="15">
-          <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/>
-        </svg>
-        + הוסיפי תמונות
-        <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanFileSelected(this)">
-      </label>
+      <div style="display:flex;gap:.5rem;justify-content:center">
+        <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:.4rem;cursor:pointer">
+          📸 גלריה
+          <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanFileSelected(this)">
+        </label>
+        <label class="btn" style="display:inline-flex;align-items:center;gap:.4rem;cursor:pointer">
+          📷 צלמי עכשיו
+          <input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="scanFileSelected(this)">
+        </label>
+      </div>
     </div>
     <div id="scan-previews" style="display:none;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;max-height:160px;overflow-y:auto"></div>
     <div id="scan-result" style="max-height:45dvh;overflow-y:auto"></div>
@@ -416,12 +418,14 @@
     <span class="modal-sub">בחרי מוצר מהספרייה</span>
     <div class="filter-bar" id="mas-filter-bar">
       <button class="filter-chip active" onclick="masFilter('all',this)">הכל</button>
-      <button class="filter-chip" onclick="masFilter('cleanser',this)">קלנזר</button>
+      <button class="filter-chip" onclick="masFilter('cleanser',this)">ניקוי</button>
       <button class="filter-chip" onclick="masFilter('toner',this)">טונר</button>
       <button class="filter-chip" onclick="masFilter('serum',this)">סרום</button>
-      <button class="filter-chip" onclick="masFilter('moisturizer',this)">לחות</button>
+      <button class="filter-chip" onclick="masFilter('moisturizer',this)">קרם לחות</button>
       <button class="filter-chip" onclick="masFilter('spf',this)">הגנה</button>
       <button class="filter-chip" onclick="masFilter('retinoid',this)">רטינול</button>
+      <button class="filter-chip" onclick="masFilter('exfoliant',this)">פילינג</button>
+      <button class="filter-chip" onclick="masFilter('eye_care',this)">עיניים</button>
     </div>
     <div id="mas-product-list" style="max-height:55dvh;overflow-y:auto"></div>
   </div>
