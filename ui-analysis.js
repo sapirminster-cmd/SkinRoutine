@@ -46,14 +46,98 @@ function _renderAnalysisHistory() {
   const history = DB.getAnalysisHistory();
   if (!history.length) { historyEl.innerHTML = ''; return; }
 
+  const compareBtn = history.length >= 2
+    ? `<button class="btn btn-sm" onclick="openAnalysisCompare()" style="margin-right:auto">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+          <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,150.11V136H72a8,8,0,0,1,0-16h48V81.89l-20,20a8,8,0,0,1-11.31-11.31l32-32a8,8,0,0,1,11.31,0l32,32A8,8,0,0,1,152,101.89l-20-20V120h48a8,8,0,0,1,0,16H132v38.11l20-20a8,8,0,0,1,11.31,11.31l-32,32a8,8,0,0,1-11.31,0l-32-32A8,8,0,0,1,100,154.11Z"/>
+        </svg>
+        השוואה
+      </button>` : '';
+
   historyEl.innerHTML = `
-    <div class="section-label" style="margin-bottom:.7rem;margin-top:.3rem">
-      <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
-        <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/>
-      </svg>
-      היסטוריית ניתוחים
+    <div style="display:flex;align-items:center;margin-bottom:.7rem;margin-top:.3rem;gap:.5rem">
+      <div class="section-label" style="margin:0">
+        <svg viewBox="0 0 256 256" fill="currentColor" width="11" height="11">
+          <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/>
+        </svg>
+        היסטוריית ניתוחים
+      </div>
+      ${compareBtn}
     </div>
     ${history.slice().reverse().map(e => _historyCard(e)).join('')}`;
+}
+
+/** Open before/after comparison modal */
+function openAnalysisCompare() {
+  const modal  = document.getElementById('modal-analysis-compare');
+  const bodyEl = document.getElementById('analysis-compare-body');
+  if (!modal || !bodyEl) return;
+
+  const history = DB.getAnalysisHistory();
+  if (history.length < 2) return;
+
+  const baseline = history.find(a => a.isBaseline);
+  const latest   = history[history.length - 1];
+  if (!baseline || baseline.id === latest.id) return;
+
+  const scoreDiff = (latest.analysis?.overallScore ?? 0) - (baseline.analysis?.overallScore ?? 0);
+  const sColor    = scoreDiff > 0 ? '#6a8f6a' : scoreDiff < 0 ? '#c0392b' : 'var(--text-soft)';
+  const sSign     = scoreDiff > 0 ? '+' : '';
+
+  const dateB = new Date(baseline.date).toLocaleDateString('he-IL', { day:'numeric', month:'short' });
+  const dateL = new Date(latest.date).toLocaleDateString('he-IL',   { day:'numeric', month:'short' });
+
+  bodyEl.innerHTML = `
+    <!-- Side by side photos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.9rem">
+      <div>
+        <div style="font-size:.65rem;color:var(--text-soft);text-align:center;margin-bottom:.3rem">בסיס · ${dateB}</div>
+        ${baseline.imageData
+          ? `<img src="${baseline.imageData}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--border)">`
+          : `<div style="aspect-ratio:1;background:var(--driftwood);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:2rem">🌸</div>`}
+        <div style="text-align:center;font-size:1.1rem;font-weight:700;color:var(--text-soft);margin-top:.3rem">
+          ${baseline.analysis?.overallScore ?? '—'}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.65rem;color:var(--text-soft);text-align:center;margin-bottom:.3rem">עכשיו · ${dateL}</div>
+        ${latest.imageData
+          ? `<img src="${latest.imageData}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--border)">`
+          : `<div style="aspect-ratio:1;background:var(--driftwood);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:2rem">🌸</div>`}
+        <div style="text-align:center;font-size:1.1rem;font-weight:700;color:${sColor};margin-top:.3rem">
+          ${latest.analysis?.overallScore ?? '—'}
+          <span style="font-size:.75rem">(${sSign}${scoreDiff})</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline of all scores -->
+    ${history.length > 2 ? `
+      <div class="section-label" style="margin-bottom:.5rem">מסלול ניתוחים</div>
+      <div style="display:flex;align-items:flex-end;gap:.3rem;height:64px;padding:.3rem 0;margin-bottom:.8rem">
+        ${history.map((e,i) => {
+          const s = e.analysis?.overallScore ?? 0;
+          const h = Math.max(8, Math.round(s * 0.6));
+          const c = e.isBaseline ? 'var(--latte)' : i === history.length-1 ? '#6a8f6a' : 'rgba(176,152,144,.5)';
+          return `<div title="${new Date(e.date).toLocaleDateString('he-IL')}: ${s}"
+                       style="flex:1;height:${h}px;background:${c};border-radius:3px 3px 0 0;
+                              min-width:8px;cursor:pointer" onclick="openAnalysisDetail('${e.id}')"></div>`;
+        }).join('')}
+      </div>` : ''}
+
+    <!-- Delta breakdown -->
+    ${latest.delta?.resolvedConcerns?.length || latest.delta?.newConcerns?.length ? `
+      <div class="section-label" style="margin-bottom:.4rem">שינויים</div>
+      ${latest.delta.resolvedConcerns?.length ? `
+        <p style="font-size:.75rem;color:#6a8f6a;margin-bottom:.2rem">
+          ✓ השתפר: ${latest.delta.resolvedConcerns.join(', ')}
+        </p>` : ''}
+      ${latest.delta.newConcerns?.length ? `
+        <p style="font-size:.75rem;color:#c0392b">
+          ⚠ חדש: ${latest.delta.newConcerns.join(', ')}
+        </p>` : ''}` : ''}`;
+
+  modal.classList.remove('hidden');
 }
 
 function _historyCard(entry) {
