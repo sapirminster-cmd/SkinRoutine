@@ -222,7 +222,9 @@ function toggleRoutineCard(routineId) {
 
 function toggleStep(routineId, productId, cycleDay) {
   const day = (cycleDay === null || cycleDay === 'null') ? null : Number(cycleDay);
-  DB.toggleDone(routineId, productId, day);
+  const nowDone = DB.toggleDone(routineId, productId, day);
+  // Haptic feedback — light on mark, double on complete all
+  if (navigator.vibrate) navigator.vibrate(nowDone ? 18 : 6);
 
   // Update step in-place
   const stepEl  = document.getElementById(`step-${routineId}-${productId}`);
