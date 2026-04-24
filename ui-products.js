@@ -25,8 +25,15 @@ function esc(str) {
 }
 
 // ─── State ────────────────────────────────────────────────────
-let _productFilter = 'all';
-let _scanImages    = []; // { base64, mimeType, preview }
+let _productFilter  = 'all';
+let _productSearch  = '';
+let _scanImages     = []; // { base64, mimeType, preview }
+
+/** Live search over product names and brands */
+function searchProducts(query) {
+  _productSearch = query.trim().toLowerCase();
+  renderProducts();
+}
 
 // ─── Render ───────────────────────────────────────────────────
 function renderProducts() {
@@ -54,17 +61,15 @@ function _updateFilterCounts(products) {
     const chip = document.querySelector(`#product-filter-bar [data-cat="${cat}"]`);
     if (!chip) return;
     const count = products.filter(p => p.category === cat).length;
-    chip.dataset.count = count;
-    // Show count badge
     const badge = chip.querySelector('.chip-count');
-    if (badge) badge.textContent = count > 0 ? count : '';
+    // Show (N) only if count > 0
+    if (badge) badge.textContent = count > 0 ? `(${count})` : '';
   });
-  // Active count
-  const activeChip = document.querySelector('#product-filter-bar [data-cat="active"]');
-  if (activeChip) {
-    const count = products.filter(p => p.active).length;
-    const badge = activeChip.querySelector('.chip-count');
-    if (badge) badge.textContent = count > 0 ? count : '';
+  // Update "הכל" with total
+  const allChip = document.querySelector('#product-filter-bar [data-cat="all"]');
+  if (allChip) {
+    const badge = allChip.querySelector('.chip-count');
+    if (badge) badge.textContent = products.length > 0 ? `(${products.length})` : '';
   }
 }
 
@@ -194,10 +199,14 @@ function _conflicts(product) {
 }
 
 function _filterProducts(products, f) {
-  if (f === 'all')     return products;
-  if (f === 'active')  return products.filter(p => p.active);
-  if (f === 'inactive')return products.filter(p => !p.active);
-  return products.filter(p => p.category === f);
+  let result = products;
+  if (f !== 'all')      result = result.filter(p => p.category === f);
+  if (_productSearch)   result = result.filter(p =>
+    p.name?.toLowerCase().includes(_productSearch) ||
+    p.brand?.toLowerCase().includes(_productSearch) ||
+    CATEGORIES[p.category]?.label?.includes(_productSearch)
+  );
+  return result;
 }
 
 function _timeLabel(t) {
@@ -235,6 +244,23 @@ function _productsEmpty(filter, totalCount) {
   </div>`;
 }
 
+
+/** Show expiry warning badge if PAO + opened date is set */
+function _expiryBadge(p) {
+  if (!p.openedDate || !p.pao) return '';
+  const opened  = new Date(p.openedDate);
+  const expires = new Date(opened);
+  expires.setMonth(expires.getMonth() + p.pao);
+  const today    = new Date();
+  const daysLeft = Math.round((expires - today) / 86400000);
+  if (daysLeft < 0) {
+    return `<span class="product-badge" style="background:rgba(192,57,43,.12);color:#a93226">פג תוקף</span>`;
+  }
+  if (daysLeft <= 30) {
+    return `<span class="product-badge" style="background:rgba(255,200,100,.15);color:#8B6914">עוד ${daysLeft} יום</span>`;
+  }
+  return '';
+}
 // ─── Filter bar ───────────────────────────────────────────────
 function filterProducts(cat, btn) {
   _productFilter = cat;
@@ -271,21 +297,25 @@ function _openProductModal(id) {
   if (id) {
     const p = DB.getProducts().find(p => p.id === id);
     if (!p) return;
-    el('mp-title').textContent   = 'עריכת מוצר';
-    el('mp-sub').textContent     = p.name;
-    el('mp-brand').value         = p.brand    || '';
-    el('mp-name').value          = p.name     || '';
-    el('mp-category').value      = p.category || '';
+    el('mp-title').textContent    = 'עריכת מוצר';
+    el('mp-sub').textContent      = p.name;
+    el('mp-brand').value          = p.brand       || '';
+    el('mp-name').value           = p.name        || '';
+    el('mp-category').value       = p.category    || '';
     el('mp-time-morning').checked = p.timeOfUse?.includes('morning') ?? true;
     el('mp-time-night').checked   = p.timeOfUse?.includes('night')   ?? true;
+    el('mp-opened-date').value    = p.openedDate  || '';
+    el('mp-pao').value            = p.pao         || '';
   } else {
-    el('mp-title').textContent   = 'מוצר חדש';
-    el('mp-sub').textContent     = 'הוסיפי פרטים — AI יסווג ויעשיר אוטומטית';
-    el('mp-brand').value         = '';
-    el('mp-name').value          = '';
-    el('mp-category').value      = '';
+    el('mp-title').textContent    = 'מוצר חדש';
+    el('mp-sub').textContent      = 'הוסיפי פרטים — AI יסווג ויעשיר אוטומטית';
+    el('mp-brand').value          = '';
+    el('mp-name').value           = '';
+    el('mp-category').value       = '';
     el('mp-time-morning').checked = true;
     el('mp-time-night').checked   = true;
+    el('mp-opened-date').value    = new Date().toISOString().slice(0,10); // default: today
+    el('mp-pao').value            = '';
   }
 
   el('mp-ai-result').innerHTML = '';
@@ -307,7 +337,9 @@ function saveProductModal() {
   nameEl.classList.remove('error');
 
   const timeOfUse = [morning && 'morning', night && 'night'].filter(Boolean);
-  const data = { brand, name, category: cat || 'other', timeOfUse };
+  const openedDate = document.getElementById('mp-opened-date')?.value || '';
+  const pao        = parseInt(document.getElementById('mp-pao')?.value) || null;
+  const data = { brand, name, category: cat || 'other', timeOfUse, openedDate, pao };
 
   if (editId) {
     DB.updateProduct(editId, data);
